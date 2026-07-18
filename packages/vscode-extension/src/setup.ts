@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import * as path from "node:path";
 import * as fs from "node:fs";
 import { resolveServerEntry } from "./server-path.js";
+import { buildServerEnv } from "./server-env.js";
 
 const IGNORE_ENTRIES = [".agent-artifacts/", ".agent-eye/"];
 
@@ -26,19 +27,13 @@ export async function setupForClaudeCode(context: vscode.ExtensionContext): Prom
     return;
   }
 
-  const channel = vscode.workspace.getConfiguration("agentEye").get<string>("browserChannel", "");
-  const logLevel = vscode.workspace.getConfiguration("agentEye").get<string>("logLevel", "info");
-
   const mcpJsonPath = path.join(workspaceRoot, ".mcp.json");
   const config = readJsonSafe(mcpJsonPath);
   const mcpServers = (config.mcpServers ??= {} as Record<string, unknown>);
   (mcpServers as Record<string, unknown>)["agent-eye"] = {
     command: "node",
     args: [serverEntry, "--workspace", workspaceRoot],
-    env: {
-      AGENT_EYE_LOG_LEVEL: logLevel,
-      ...(channel ? { AGENT_EYE_BROWSER_CHANNEL: channel } : {}),
-    },
+    env: buildServerEnv(),
   };
 
   try {

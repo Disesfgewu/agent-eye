@@ -71,6 +71,16 @@
           "enum": ["debug", "info", "warn", "error"],
           "default": "info",
           "description": "Log verbosity for the Agent Eye MCP server (written to stderr / the server output channel)."
+        },
+        "agentEye.showCursor": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a pulsing cursor overlay in the browser so you can watch where the agent points and clicks (Playwright doesn't move the real OS pointer)."
+        },
+        "agentEye.slowMoMs": {
+          "type": "number",
+          "default": 0,
+          "description": "Slow down each browser action by this many milliseconds so you can follow along. 0 = full speed. Try 300–800 while watching."
         }
       }
     }

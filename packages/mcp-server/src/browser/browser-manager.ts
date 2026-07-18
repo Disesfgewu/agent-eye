@@ -36,11 +36,49 @@ const MAX_CONSOLE_TEXT = 4000;
  * into bounded ring buffers, and exposes an accessibility snapshot as the
  * agent's primary "eyes" (structured, cheap, no vision model needed).
  */
+/** Injected into every page so the user can see where the agent is "pointing".
+ * Playwright injects synthetic input and does NOT move the OS pointer, so this
+ * overlay IS the visible cursor: a pulsing dot that follows the automated mouse
+ * and shows a ripple on click. Renders on top of everything, intercepts nothing. */
+const CURSOR_SCRIPT = `(() => {
+  if (window.__agentEyeCursor) return;
+  window.__agentEyeCursor = true;
+  const install = () => {
+    if (!document.body) { requestAnimationFrame(install); return; }
+    const style = document.createElement('style');
+    style.textContent =
+      '@keyframes ae-pulse{0%{box-shadow:0 0 0 0 rgba(255,60,60,.55)}70%{box-shadow:0 0 0 16px rgba(255,60,60,0)}100%{box-shadow:0 0 0 0 rgba(255,60,60,0)}}' +
+      '@keyframes ae-ripple{from{opacity:.85;transform:translate(-50%,-50%) scale(.3)}to{opacity:0;transform:translate(-50%,-50%) scale(2.6)}}';
+    document.head.appendChild(style);
+    const dot = document.createElement('div');
+    dot.id = '__agent_eye_cursor';
+    dot.style.cssText =
+      'position:fixed;z-index:2147483647;left:50%;top:50%;width:24px;height:24px;border-radius:50%;' +
+      'background:rgba(255,60,60,.7);border:2px solid #fff;pointer-events:none;' +
+      'transform:translate(-50%,-50%);transition:left .12s ease-out,top .12s ease-out;' +
+      'animation:ae-pulse 1.5s infinite;box-shadow:0 0 12px rgba(0,0,0,.5)';
+    document.body.appendChild(dot);
+    addEventListener('mousemove', (e) => { dot.style.left = e.clientX + 'px'; dot.style.top = e.clientY + 'px'; }, true);
+    addEventListener('mousedown', (e) => {
+      const r = document.createElement('div');
+      r.style.cssText =
+        'position:fixed;z-index:2147483646;left:' + e.clientX + 'px;top:' + e.clientY + 'px;' +
+        'width:22px;height:22px;border-radius:50%;background:rgba(255,60,60,.45);pointer-events:none;' +
+        'animation:ae-ripple .5s ease-out forwards';
+      document.body.appendChild(r);
+      setTimeout(() => r.remove(), 520);
+    }, true);
+  };
+  install();
+})()`;
+
 export class BrowserManager {
   private context: BrowserContext | undefined;
   private page: Page | undefined;
   private readonly consoleBuffer = new RingBuffer<ConsoleEntry>(CONSOLE_CAPACITY);
   private readonly networkBuffer = new RingBuffer<NetworkEntry>(NETWORK_CAPACITY);
+  private readonly showCursor = process.env.AGENT_EYE_SHOW_CURSOR === "1";
+  private readonly slowMo = Number(process.env.AGENT_EYE_SLOWMO) || 0;
 
   constructor(
     private readonly profileDir: string,
@@ -59,6 +97,8 @@ export class BrowserManager {
         // Headed by default so the user can watch (the whole point). The env
         // knob enables headless for CI / remote environments (plan v1.1).
         headless: process.env.AGENT_EYE_HEADLESS === "1",
+        // slowMo paces actions so a human can follow along when watching.
+        slowMo: this.slowMo,
         channel: this.channel,
         viewport: { width: 1280, height: 800 },
         // Harden the profile: no password manager, autofill, or account sync,
@@ -73,10 +113,29 @@ export class BrowserManager {
       });
     }
 
+    if (this.showCursor) {
+      await this.context.addInitScript(CURSOR_SCRIPT);
+    }
+
     const pages = this.context.pages();
     this.page = pages.length > 0 ? pages[0] : await this.context.newPage();
     this.attachListeners(this.page);
     return this.page;
+  }
+
+  /** Animate the (real) mouse to an element's centre so the visible cursor
+   * glides there before acting — only when the watch-along cursor is enabled. */
+  private async moveCursorTo(page: Page, locator: ReturnType<Page["locator"]>): Promise<void> {
+    if (!this.showCursor) return;
+    try {
+      await locator.scrollIntoViewIfNeeded({ timeout: 5_000 });
+      const box = await locator.boundingBox();
+      if (box) {
+        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 24 });
+      }
+    } catch {
+      /* cursor animation is best-effort; never block the real action */
+    }
   }
 
   private attachListeners(page: Page): void {
@@ -132,17 +191,26 @@ export class BrowserManager {
   async navigate(url: string): Promise<{ url: string; title: string }> {
     const page = await this.ensurePage();
     await page.goto(url, { waitUntil: "domcontentloaded" });
+    if (this.showCursor) {
+      // Nudge the mouse so the overlay cursor appears immediately, and glide it
+      // in so the user can spot it before any interaction.
+      const vp = page.viewportSize() ?? { width: 1280, height: 800 };
+      await page.mouse.move(vp.width / 2, vp.height / 2, { steps: 12 }).catch(() => undefined);
+    }
     return { url: page.url(), title: await page.title() };
   }
 
   async click(refOrSelector: string): Promise<void> {
     const page = await this.ensurePage();
-    await this.locate(page, refOrSelector).click({ timeout: 10_000 });
+    const locator = this.locate(page, refOrSelector);
+    await this.moveCursorTo(page, locator);
+    await locator.click({ timeout: 10_000 });
   }
 
   async type(refOrSelector: string, text: string, submit: boolean): Promise<void> {
     const page = await this.ensurePage();
     const locator = this.locate(page, refOrSelector);
+    await this.moveCursorTo(page, locator);
     await locator.fill(text, { timeout: 10_000 });
     if (submit) await locator.press("Enter");
   }

@@ -74,6 +74,40 @@ extension, and the tools are available to Copilot.
 
 ## Tools
 
+## Works with any frontend
+
+Agent Eye is **framework-agnostic** — it is one universal tool, not a per-framework
+template. It operates at two layers that don't care what framework you used:
+
+- The **browser** (Playwright) sees the same DOM, screen, console, and network
+  whether the page came from React, Vue, Svelte, Angular, SolidJS, plain
+  HTML/CSS/JS, or Flutter web.
+- **`start_dev_server`** runs *any* allowlisted command. The only per-framework
+  difference is the dev command string — which is data, not code.
+
+So you don't need a different setup per stack. Point the agent at your project and
+tell it which command starts the dev server. Common ones (all allowlisted by
+default):
+
+| Stack | Typical dev command |
+|---|---|
+| React / Vite / Vue / Svelte | `npm run dev` · `pnpm dev` · `vite` |
+| Next.js / Nuxt / Astro / Remix | `npm run dev` |
+| Angular | `ng serve` |
+| Plain HTML/CSS/JS | `python -m http.server 5500` · `npx serve` · `npx http-server` |
+| **Flutter web** | `flutter run -d web-server --web-port 5500` |
+| Django / Flask | `python manage.py runserver` · `flask run` |
+| Rails / Jekyll / Hugo | `rails server` · `jekyll serve` · `hugo server` |
+
+> **Flutter / canvas apps**: Flutter web renders to a canvas (CanvasKit), so the
+> accessibility snapshot can be sparse. Agent Eye detects this and tells the agent
+> to fall back to `browser_screenshot` (see the page) + coordinate clicks, while
+> still using console/network logs — the debug loop still works, just vision-first
+> instead of snapshot-first. Add any extra dev commands to `commandAllowlist` in
+> `.agent-eye/policy.json`.
+
+## Tools
+
 | Tool | Action category | Purpose |
 |---|---|---|
 | `browser_navigate(url)` | interact / highRisk | Open an http(s) URL (allowlisted hosts only). |
@@ -121,6 +155,8 @@ detail in [`plan.v1.md` §7](plan.v1.md).
 | `AGENT_EYE_WORKSPACE` | — | Workspace root (defaults to cwd / `--workspace`). |
 | `AGENT_EYE_BROWSER_CHANNEL` | `agentEye.browserChannel` | `chrome`/`msedge` to use an installed browser. |
 | `AGENT_EYE_HEADLESS=1` | — | Run headless (CI / remote). Headed is the default. |
+| `AGENT_EYE_SHOW_CURSOR` | `agentEye.showCursor` | Pulsing cursor overlay so you can watch where the agent points/clicks (Playwright doesn't move the real OS pointer). On by default. |
+| `AGENT_EYE_SLOWMO` | `agentEye.slowMoMs` | Slow each action by N ms so you can follow along (e.g. 300–800). |
 | `AGENT_EYE_LOG_LEVEL` | `agentEye.logLevel` | `debug`/`info`/`warn`/`error`. |
 
 ## Development

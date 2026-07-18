@@ -119,7 +119,14 @@ export function registerTools(ctx: ToolContext): void {
       try {
         const snapshot = await browser.snapshot();
         const url = browser.currentUrl() ?? "(no page)";
-        return text(framedWebData(url, snapshot));
+        // Canvas-rendered apps (Flutter web CanvasKit, WebGL, games) expose
+        // little/no accessibility tree. Nudge the agent to use screenshots +
+        // coordinate clicks instead of assuming the page is empty.
+        const hint =
+          snapshot.trim().length < 40
+            ? "\n\nNote: the accessibility tree is nearly empty. This is common for canvas-rendered UIs (e.g. Flutter web / WebGL). Use browser_screenshot to see the page and click by coordinates, and rely on console/network logs."
+            : "";
+        return text(framedWebData(url, snapshot) + hint);
       } catch (err) {
         return toolError("browser_snapshot", "Failed to snapshot page (is a page open? call browser_navigate first)", err, artifacts);
       }

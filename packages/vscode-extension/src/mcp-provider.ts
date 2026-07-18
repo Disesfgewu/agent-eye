@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { resolveServerEntry } from "./server-path.js";
+import { buildServerEnv } from "./server-env.js";
 
 /**
  * Registers Agent Eye as an MCP server VS Code manages directly (plan: Copilot
@@ -29,18 +30,11 @@ export function registerMcpProvider(context: vscode.ExtensionContext): void {
       const folder = vscode.workspace.workspaceFolders?.[0];
       if (!serverEntry || !folder) return [];
 
-      const cfg = vscode.workspace.getConfiguration("agentEye");
-      const channel = cfg.get<string>("browserChannel", "");
-      const logLevel = cfg.get<string>("logLevel", "info");
-
       const def = new vscode.McpStdioServerDefinition(
         "Agent Eye",
         "node",
         [serverEntry, "--workspace", folder.uri.fsPath],
-        {
-          AGENT_EYE_LOG_LEVEL: logLevel,
-          ...(channel ? { AGENT_EYE_BROWSER_CHANNEL: channel } : {}),
-        },
+        buildServerEnv(),
         context.extension.packageJSON.version as string
       );
       def.cwd = folder.uri;

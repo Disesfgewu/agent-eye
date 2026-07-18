@@ -45,24 +45,24 @@ export const DEFAULT_POLICY: Policy = {
     highRisk: "deny",
   },
   navigationAllowlist: ["localhost", "127.0.0.1", "[::1]"],
+  // Dev-server launchers for the common frontend stacks. Framework support is
+  // otherwise framework-agnostic (the browser sees the same DOM regardless);
+  // this list only governs which dev command may be spawned. Starts are "ask"
+  // by default and cwd is workspace-confined, so this stays safe to broaden.
   commandAllowlist: [
-    "npm",
-    "pnpm",
-    "yarn",
-    "bun",
-    "node",
-    "npx",
-    "deno",
-    "vite",
-    "next",
-    "nuxt",
-    "ng",
-    "webpack",
-    "rollup",
-    "parcel",
-    "astro",
-    "remix",
-    "svelte-kit",
+    // JS/TS package managers & runtimes
+    "npm", "pnpm", "yarn", "bun", "node", "npx", "deno",
+    // JS/TS bundlers & meta-frameworks
+    "vite", "next", "nuxt", "ng", "webpack", "rollup", "parcel", "astro",
+    "remix", "svelte-kit", "gatsby", "expo", "quasar", "ionic", "storybook",
+    "react-scripts", "vue-cli-service", "turbo",
+    // Flutter / Dart
+    "flutter", "dart",
+    // Python (http.server, Django, Flask, uvicorn, ...)
+    "python", "python3", "py", "uvicorn", "flask", "django-admin", "manage.py",
+    // PHP / Ruby / static & SSG servers
+    "php", "ruby", "bundle", "rails", "jekyll", "hugo",
+    "http-server", "serve", "live-server", "static-server", "wrangler",
   ],
   redactSensitiveHeaders: true,
 };
