@@ -33,7 +33,7 @@ export async function setupForClaudeCode(context: vscode.ExtensionContext): Prom
   (mcpServers as Record<string, unknown>)["agent-eye"] = {
     command: "node",
     args: [serverEntry, "--workspace", workspaceRoot],
-    env: buildServerEnv(),
+    env: buildServerEnv(context),
   };
 
   try {

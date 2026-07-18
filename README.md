@@ -47,11 +47,27 @@ shows you what's happening.
 - A one-time browser download: `npx playwright install chromium`
   (or set `agentEye.browserChannel` to `chrome`/`msedge` to use an installed browser)
 
+## Install (packaged .vsix)
+
+```bash
+# From the repo:
+npm install && npm run build
+cd packages/vscode-extension
+npx @vscode/vsce package --no-dependencies   # produces agent-eye-0.1.0.vsix
+code --install-extension agent-eye-0.1.0.vsix
+```
+
+The `.vsix` bundles the MCP server but not Playwright (too large + native). On
+first run the extension prompts to install the browser runtime, or run **“Agent
+Eye: Install Browser Runtime (Playwright)”** from the Command Palette — it
+installs Playwright + Chromium into the extension's global storage, which the
+server finds via `NODE_PATH`.
+
 ## Getting started (development)
 
 ```bash
 npm install
-npm run build                 # builds both packages
+npm run build                 # builds both packages (incl. the bundled server)
 npx playwright install chromium
 ```
 

@@ -1,11 +1,21 @@
-import {
-  chromium,
-  type BrowserContext,
-  type Page,
-  type ConsoleMessage,
-} from "playwright";
+import type { BrowserContext, Page, ConsoleMessage } from "playwright";
 import { log } from "../logger.js";
 import { RingBuffer } from "./ring-buffer.js";
+
+/** Lazily loads Playwright so the server still starts (and other tools work)
+ * when the browser runtime isn't installed yet — the failure surfaces as a
+ * clear tool error instead of a startup crash. */
+async function loadChromium() {
+  try {
+    const pw = await import("playwright");
+    return pw.chromium;
+  } catch {
+    throw new Error(
+      "Playwright is not installed. Run the command \"Agent Eye: Install Browser Runtime\" " +
+        "(or `npm i playwright && npx playwright install chromium`) and try again."
+    );
+  }
+}
 
 export interface ConsoleEntry {
   timestamp: string;
@@ -93,6 +103,7 @@ export class BrowserManager {
         profileDir: this.profileDir,
         channel: this.channel ?? "bundled-chromium",
       });
+      const chromium = await loadChromium();
       this.context = await chromium.launchPersistentContext(this.profileDir, {
         // Headed by default so the user can watch (the whole point). The env
         // knob enables headless for CI / remote environments (plan v1.1).
@@ -113,12 +124,13 @@ export class BrowserManager {
       });
     }
 
+    const context = this.context;
     if (this.showCursor) {
-      await this.context.addInitScript(CURSOR_SCRIPT);
+      await context.addInitScript(CURSOR_SCRIPT);
     }
 
-    const pages = this.context.pages();
-    this.page = pages.length > 0 ? pages[0] : await this.context.newPage();
+    const pages = context.pages();
+    this.page = pages.length > 0 ? pages[0] : await context.newPage();
     this.attachListeners(this.page);
     return this.page;
   }

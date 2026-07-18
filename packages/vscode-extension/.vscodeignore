@@ -1,0 +1,17 @@
+# Source & build tooling (dist/ is shipped, src/ is not)
+.vscode/**
+.vscode-test/**
+src/**
+esbuild.mjs
+tsconfig.json
+.gitignore
+dist/**/*.map
+
+# Trim weight from the shipped Playwright runtime (browsers are NOT here —
+# they live in the global ms-playwright cache, installed separately)
+node_modules/**/*.md
+node_modules/**/*.ts
+node_modules/**/*.map
+node_modules/.bin/**
+node_modules/playwright-core/lib/vite/**
+node_modules/playwright/lib/**/*.d.ts

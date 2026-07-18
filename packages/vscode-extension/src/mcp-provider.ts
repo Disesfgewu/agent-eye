@@ -34,7 +34,7 @@ export function registerMcpProvider(context: vscode.ExtensionContext): void {
         "Agent Eye",
         "node",
         [serverEntry, "--workspace", folder.uri.fsPath],
-        buildServerEnv(),
+        buildServerEnv(context),
         context.extension.packageJSON.version as string
       );
       def.cwd = folder.uri;

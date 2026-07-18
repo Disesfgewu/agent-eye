@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import { setupForClaudeCode } from "./setup.js";
 import { registerMcpProvider } from "./mcp-provider.js";
 import { AgentEyePanel } from "./panel.js";
+import { installRuntime, ensureRuntimePrompt } from "./runtime.js";
 
 export function activate(context: vscode.ExtensionContext): void {
   const panel = new AgentEyePanel(context);
@@ -22,10 +23,12 @@ export function activate(context: vscode.ExtensionContext): void {
       vscode.commands.executeCommand("agentEye.activity.focus")
     ),
     vscode.commands.registerCommand("agentEye.openPolicy", () => openPolicy()),
-    vscode.commands.registerCommand("agentEye.clearArtifacts", () => panel.clear())
+    vscode.commands.registerCommand("agentEye.clearArtifacts", () => panel.clear()),
+    vscode.commands.registerCommand("agentEye.installRuntime", () => installRuntime(context))
   );
 
   registerMcpProvider(context);
+  void ensureRuntimePrompt(context);
 }
 
 export function deactivate(): void {
