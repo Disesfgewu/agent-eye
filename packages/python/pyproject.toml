@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-eye"
+version = "0.1.0"
+description = "Give AI agents eyes and hands in the browser: Playwright browser control + dev-server management with server-side permission enforcement, as a Python API and an MCP server."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "Agent Eye" }]
+keywords = ["ai", "agent", "browser", "automation", "mcp", "playwright", "frontend", "debugging"]
+dependencies = [
+    "playwright>=1.40",
+]
+
+[project.optional-dependencies]
+# MCP server entry point (so any MCP-aware agent can use the same tools).
+mcp = ["mcp>=1.0"]
+
+[project.scripts]
+agent-eye-mcp = "agent_eye.mcp_server:main"
+
+[project.urls]
+Homepage = "https://github.com/agent-eye/agent-eye"
+
+[tool.setuptools.packages.find]
+where = ["src"]

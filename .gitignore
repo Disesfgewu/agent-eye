@@ -22,5 +22,13 @@ npm-debug.log*
 .DS_Store
 Thumbs.db
 
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+*.db
+
 test/*
 test
