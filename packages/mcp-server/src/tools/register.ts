@@ -159,6 +159,33 @@ export function registerTools(ctx: ToolContext): void {
     }
   );
 
+  // ---- browser_click_at (coordinates; for canvas/Flutter) ------------------
+  server.registerTool(
+    "browser_click_at",
+    {
+      title: "Click at coordinates",
+      description:
+        "Click at absolute viewport pixel coordinates. Use this for canvas-rendered UIs (Flutter web, WebGL, games) where browser_snapshot is empty and there is no selectable element: take a browser_screenshot, read the pixel position of the target, and click it. Viewport is 1280x800 by default.",
+      inputSchema: {
+        x: z.number().describe("X coordinate in viewport pixels (0 = left)."),
+        y: z.number().describe("Y coordinate in viewport pixels (0 = top)."),
+      },
+    },
+    async ({ x, y }): Promise<ToolResult> => {
+      const blocked = requireGlobals();
+      if (blocked) return blocked;
+      const gateResult = await gate.check("interact", { tool: "browser_click_at", title: `Click at (${x}, ${y})`, detail: "" });
+      if (!gateResult.ok) return errorResult(gateResult.message);
+      try {
+        await browser.clickAt(x, y);
+        artifacts.record({ type: "tool_call", tool: "browser_click_at", title: `Clicked at (${x}, ${y})`, status: "ok" });
+        return text(`Clicked at (${x}, ${y}).`);
+      } catch (err) {
+        return toolError("browser_click_at", `Failed to click at (${x}, ${y})`, err, artifacts);
+      }
+    }
+  );
+
   // ---- browser_type --------------------------------------------------------
   server.registerTool(
     "browser_type",

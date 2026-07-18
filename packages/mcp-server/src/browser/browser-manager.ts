@@ -215,6 +215,17 @@ export class BrowserManager {
     if (submit) await locator.press("Enter");
   }
 
+  /** Click at absolute viewport coordinates. Essential for canvas-rendered UIs
+   * (Flutter web / WebGL / games) where there is no DOM element to target — the
+   * agent reads a screenshot, estimates the coordinate, and clicks it. */
+  async clickAt(x: number, y: number): Promise<void> {
+    const page = await this.ensurePage();
+    if (this.showCursor) {
+      await page.mouse.move(x, y, { steps: 20 }).catch(() => undefined);
+    }
+    await page.mouse.click(x, y);
+  }
+
   async reload(): Promise<{ url: string; title: string }> {
     const page = await this.ensurePage();
     await page.reload({ waitUntil: "domcontentloaded" });

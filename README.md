@@ -113,6 +113,7 @@ default):
 | `browser_navigate(url)` | interact / highRisk | Open an http(s) URL (allowlisted hosts only). |
 | `browser_snapshot()` | observe | Accessibility-tree snapshot with `[ref=eN]` handles — the agent's primary "eyes". |
 | `browser_click(target)` | interact | Click by ref or Playwright selector. |
+| `browser_click_at(x, y)` | interact | Click at viewport coordinates — for canvas UIs (Flutter web, WebGL, games) with no selectable DOM. |
 | `browser_type(target, text, submit?)` | interact / sideEffect | Fill an input; `submit` presses Enter (side-effecting). |
 | `browser_screenshot(fullPage?)` | observe | PNG saved to the timeline and returned. |
 | `browser_get_console_logs(limit?)` | observe | Console messages + uncaught errors. |
