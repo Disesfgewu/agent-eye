@@ -1,0 +1,28 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Build (extension + bundled MCP server)
+        run: npm run build
+      - name: Package the .vsix
+        working-directory: packages/vscode-extension
+        run: npx --yes @vscode/vsce package --no-dependencies --allow-missing-repository
+      - uses: actions/upload-artifact@v4
+        with:
+          name: agent-eye-vsix
+          path: packages/vscode-extension/*.vsix
