@@ -64,4 +64,4 @@ Exposes the same tools over MCP for any MCP-aware agent.
 
 ## License
 
-MIT
+Apache-2.0

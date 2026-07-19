@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Give AI coding agents eyes and hands in the browser: an MCP server + VS Code extension for autonomous frontend run-test-debug loops.",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "workspaces": [
     "packages/mcp-server",
     "packages/vscode-extension"

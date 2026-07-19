@@ -4,7 +4,7 @@
   "description": "Give AI coding agents a visible browser and dev-server control for autonomous frontend run-test-debug loops, with server-side permission controls.",
   "version": "0.1.3",
   "publisher": "agent-eye",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "engines": {
     "vscode": "^1.104.0",
     "node": ">=20"
