@@ -14,6 +14,20 @@ just one.
 > (start dev server → open browser → snapshot → interact → read console → find bug)
 > is implemented and verified end-to-end.
 
+## ⬇️ Download
+
+[![Download the .vsix](https://img.shields.io/badge/⬇%20Download-agent--eye.vsix-6366F1?style=for-the-badge)](https://github.com/OWNER/REPO/releases/latest)
+
+Click the button (or open the **[Releases page](https://github.com/OWNER/REPO/releases/latest)**),
+download the latest **`agent-eye-*.vsix`**, then install it — see
+**[Installation](#installation)** (VS Code → *Extensions: Install from VSIX…*).
+Prefer to build it yourself? That's in Installation too.
+
+> The downloadable `.vsix` is attached to a GitHub Release automatically when a
+> `v*` tag is pushed (`.github/workflows/publish.yml`). **Replace `OWNER/REPO`
+> in the two links above with your GitHub repository** so the button points at
+> your releases.
+
 ## Demo
 
 The agent drives a **real, visible browser** while you watch. A pulsing red dot
