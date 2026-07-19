@@ -31,6 +31,8 @@ const LOG_CAPACITY = 1000;
 export class DevServerManager {
   private servers = new Map<string, DevServer>();
 
+  constructor(private readonly reaper?: { track(pid?: number): void; untrack(pid?: number): void }) {}
+
   /**
    * Spawns a validated command. The caller (tool layer) must have already run
    * it through the command guard and policy; this method assumes command/args/
@@ -63,15 +65,18 @@ export class DevServerManager {
     child.stderr?.on("data", (chunk: Buffer) =>
       appendLines(logs, "stderr", chunk.toString("utf8"))
     );
+    this.reaper?.track(child.pid);
     child.on("exit", (code) => {
       server.status = "exited";
       server.exitCode = code;
+      this.reaper?.untrack(child.pid);
       log.info("Dev server exited", { id, code });
     });
     child.on("error", (err) => {
       appendLines(logs, "stderr", `[agent-eye] failed to start process: ${err.message}`);
       server.status = "exited";
       server.exitCode = -1;
+      this.reaper?.untrack(child.pid);
     });
 
     this.servers.set(id, server);

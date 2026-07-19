@@ -1,5 +1,6 @@
 import * as path from "node:path";
 import * as fs from "node:fs";
+import { spawnSync } from "node:child_process";
 
 /**
  * Runtime configuration derived from the workspace root. Every path the server
@@ -17,8 +18,8 @@ export interface ServerConfig {
   browserProfileDir: string;
   /** Policy file path. */
   policyFile: string;
-  /** Lock file guarding single-instance ownership of global resources. */
-  lockFile: string;
+  /** Directory of per-instance child-PID registries (for orphan reaping). */
+  pidsDir: string;
 }
 
 function resolveWorkspaceRoot(): string {
@@ -53,12 +54,14 @@ export function loadConfig(): ServerConfig {
     // browser" errors even when no browser was ever opened.
     browserProfileDir: path.join(profilesRoot, `p${process.pid}`),
     policyFile: path.join(stateDir, "policy.json"),
-    lockFile: path.join(stateDir, "server.lock"),
+    pidsDir: path.join(stateDir, "pids"),
   };
 }
 
-/** Removes leftover per-pid profile dirs whose owning process is gone, so they
- * don't accumulate after crashes/kills. Best-effort. */
+/** Removes leftover per-pid profile dirs whose owning process is gone, and kills
+ * any orphaned browser still holding that profile (the case a SIGKILL of the
+ * server leaves behind, since Playwright can't clean up on an uncatchable
+ * signal). Best-effort — no zombies left around. */
 function cleanStaleProfiles(profilesRoot: string): void {
   try {
     for (const name of fs.readdirSync(profilesRoot)) {
@@ -66,10 +69,36 @@ function cleanStaleProfiles(profilesRoot: string): void {
       if (!m) continue;
       const pid = Number(m[1]);
       if (pid === process.pid || isAlive(pid)) continue;
-      fs.rmSync(path.join(profilesRoot, name), { recursive: true, force: true });
+      const dir = path.join(profilesRoot, name);
+      killProcessesUsingDir(dir); // kill an orphan chromium holding this profile
+      fs.rmSync(dir, { recursive: true, force: true });
     }
   } catch {
     /* dir may not exist yet */
+  }
+}
+
+/** Kills processes whose command line references `dir` (an orphan browser using
+ * a dead instance's user-data-dir). Only runs for already-stale dirs, so it can
+ * never touch a live browser. Best-effort, cross-platform. */
+function killProcessesUsingDir(dir: string): void {
+  try {
+    if (process.platform === "win32") {
+      const escaped = dir.replace(/'/g, "''");
+      spawnSync(
+        "powershell",
+        [
+          "-NoProfile",
+          "-Command",
+          `Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*${escaped}*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }`,
+        ],
+        { stdio: "ignore", timeout: 10000 }
+      );
+    } else {
+      spawnSync("pkill", ["-9", "-f", dir], { stdio: "ignore", timeout: 10000 });
+    }
+  } catch {
+    /* best-effort */
   }
 }
 

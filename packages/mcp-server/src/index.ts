@@ -9,6 +9,7 @@ import { ApprovalService } from "./approval.js";
 import { PermissionGate } from "./tools/gate.js";
 import { BrowserManager } from "./browser/browser-manager.js";
 import { DevServerManager } from "./devserver/dev-server-manager.js";
+import { ProcessReaper } from "./reaper.js";
 import { registerTools } from "./tools/register.js";
 
 const SERVER_NAME = "agent-eye";
@@ -24,6 +25,11 @@ async function main(): Promise<void> {
   // and one never falsely blocks the other. (The old lock blocked browser tools
   // whenever another server merely existed — even if it never opened a browser.)
   const ownsGlobals = true;
+
+  // Reap any orphaned browser/dev-server processes left by a previous instance
+  // that died abruptly (crash/SIGKILL) — no zombies, no leaks.
+  ProcessReaper.reapStale(config.pidsDir);
+  const reaper = new ProcessReaper(config.pidsDir);
 
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
@@ -45,7 +51,7 @@ async function main(): Promise<void> {
     config.browserProfileDir,
     process.env.AGENT_EYE_BROWSER_CHANNEL || undefined
   );
-  const devServers = new DevServerManager();
+  const devServers = new DevServerManager(reaper);
 
   registerTools({
     server,
@@ -79,6 +85,7 @@ async function main(): Promise<void> {
       await devServers.stopAll();
       await browser.close();
     } finally {
+      reaper.dispose();
       process.exit(0);
     }
   };
