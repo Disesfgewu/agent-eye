@@ -96,7 +96,7 @@ const STATUS_SCRIPT = `(() => {
     el = document.createElement('div');
     el.id = '__agent_eye_status';
     el.style.cssText =
-      'position:fixed;z-index:2147483647;top:12px;left:50%;transform:translateX(-50%);' +
+      'position:fixed;z-index:2147483647;bottom:20px;left:50%;transform:translateX(-50%);' +
       'max-width:80vw;padding:8px 18px;border-radius:999px;background:rgba(15,23,42,.92);' +
       'color:#fff;font:600 13px/1.4 system-ui,sans-serif;letter-spacing:.2px;' +
       'box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none;display:flex;gap:8px;align-items:center;' +
@@ -119,6 +119,38 @@ const STATUS_SCRIPT = `(() => {
   };
 })()`;
 
+/** Input lock: a transparent overlay + keyboard trap that blocks the real user
+ * while the agent drives, plus a "🔒 controlled" ribbon. Exposes
+ * window.__agentEyeUnlock()/__agentEyeLock() so the agent can momentarily lift
+ * the lock for its OWN dispatched action (which would otherwise hit the overlay)
+ * and restore it immediately after. Starts locked. */
+const LOCK_SCRIPT = `(() => {
+  if (window.__agentEyeLockInstalled) return;
+  window.__agentEyeLockInstalled = true;
+  let locked = true;
+  const install = () => {
+    if (!document.body) { requestAnimationFrame(install); return; }
+    const ov = document.createElement('div');
+    ov.id = '__agent_eye_lock_overlay';
+    ov.style.cssText = 'position:fixed;inset:0;z-index:2147483645;background:transparent;cursor:not-allowed';
+    document.body.appendChild(ov);
+    const badge = document.createElement('div');
+    badge.id = '__agent_eye_lock';
+    badge.style.cssText = 'position:fixed;z-index:2147483646;top:12px;left:12px;padding:6px 12px;border-radius:8px;background:rgba(244,63,94,.95);color:#fff;font:700 12px/1 system-ui,sans-serif;box-shadow:0 2px 10px rgba(0,0,0,.4);pointer-events:none;display:flex;gap:6px;align-items:center';
+    badge.innerHTML = '<span>🔒</span><span>Agent Eye 控制中·請勿操作</span>';
+    document.body.appendChild(badge);
+    const apply = () => { ov.style.pointerEvents = locked ? 'auto' : 'none'; badge.style.opacity = locked ? '1' : '.4'; };
+    apply();
+    const trap = (e) => { if (locked) { e.preventDefault(); e.stopImmediatePropagation(); } };
+    for (const t of ['keydown','keyup','keypress']) window.addEventListener(t, trap, true);
+    window.__agentEyeLock = () => { locked = true; apply(); };
+    window.__agentEyeUnlock = () => { locked = false; apply(); };
+  };
+  install();
+})()`;
+
+const isHeadless = () => process.env.AGENT_EYE_HEADLESS === "1";
+
 export class BrowserManager {
   private context: BrowserContext | undefined;
   private page: Page | undefined;
@@ -126,6 +158,12 @@ export class BrowserManager {
   private readonly networkBuffer = new RingBuffer<NetworkEntry>(NETWORK_CAPACITY);
   private readonly showCursor = process.env.AGENT_EYE_SHOW_CURSOR === "1";
   private readonly slowMo = Number(process.env.AGENT_EYE_SLOWMO) || 0;
+  // Lock real user input while the agent drives (headed only, default on).
+  // Cross-platform: uses CDP Input.setIgnoreInputEvents — blocks hardware
+  // mouse/keyboard but lets the agent's dispatched events through.
+  private readonly inputLock =
+    process.env.AGENT_EYE_INPUT_LOCK === "1" ||
+    (!isHeadless() && process.env.AGENT_EYE_INPUT_LOCK !== "0");
 
   constructor(
     private readonly profileDir: string,
@@ -166,11 +204,30 @@ export class BrowserManager {
       await context.addInitScript(CURSOR_SCRIPT);
       await context.addInitScript(STATUS_SCRIPT);
     }
+    if (this.inputLock) {
+      await context.addInitScript(LOCK_SCRIPT);
+      log.info("User input locked (agent-only control)");
+    }
 
     const pages = context.pages();
     this.page = pages.length > 0 ? pages[0] : await context.newPage();
     this.attachListeners(this.page);
     return this.page;
+  }
+
+  /**
+   * Lifts the input lock for the duration of one agent action (so the agent's
+   * own dispatched click/keys reach the page instead of the blocking overlay),
+   * then restores it. No-op when the lock is disabled.
+   */
+  private async withUnlocked<T>(page: Page, fn: () => Promise<T>): Promise<T> {
+    if (!this.inputLock) return fn();
+    await page.evaluate("window.__agentEyeUnlock && window.__agentEyeUnlock()").catch(() => undefined);
+    try {
+      return await fn();
+    } finally {
+      await page.evaluate("window.__agentEyeLock && window.__agentEyeLock()").catch(() => undefined);
+    }
   }
 
   /**
@@ -276,15 +333,17 @@ export class BrowserManager {
     const page = await this.ensurePage();
     const locator = this.locate(page, refOrSelector);
     await this.moveCursorTo(page, locator);
-    await locator.click({ timeout: 10_000 });
+    await this.withUnlocked(page, () => locator.click({ timeout: 10_000 }));
   }
 
   async type(refOrSelector: string, text: string, submit: boolean): Promise<void> {
     const page = await this.ensurePage();
     const locator = this.locate(page, refOrSelector);
     await this.moveCursorTo(page, locator);
-    await locator.fill(text, { timeout: 10_000 });
-    if (submit) await locator.press("Enter");
+    await this.withUnlocked(page, async () => {
+      await locator.fill(text, { timeout: 10_000 });
+      if (submit) await locator.press("Enter");
+    });
   }
 
   /** Click at absolute viewport coordinates. Essential for canvas-rendered UIs
@@ -295,7 +354,7 @@ export class BrowserManager {
     if (this.showCursor) {
       await page.mouse.move(x, y, { steps: 20 }).catch(() => undefined);
     }
-    await page.mouse.click(x, y);
+    await this.withUnlocked(page, () => page.mouse.click(x, y));
   }
 
   async reload(): Promise<{ url: string; title: string }> {

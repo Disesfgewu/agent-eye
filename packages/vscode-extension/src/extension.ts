@@ -5,6 +5,7 @@ import { setupForClaudeCode } from "./setup.js";
 import { registerMcpProvider } from "./mcp-provider.js";
 import { AgentEyePanel } from "./panel.js";
 import { installRuntime, ensureRuntimePrompt } from "./runtime.js";
+import { autoInstallIntegrations, reinstallIntegrations } from "./auto-install.js";
 
 export function activate(context: vscode.ExtensionContext): void {
   const panel = new AgentEyePanel(context);
@@ -24,11 +25,15 @@ export function activate(context: vscode.ExtensionContext): void {
     ),
     vscode.commands.registerCommand("agentEye.openPolicy", () => openPolicy()),
     vscode.commands.registerCommand("agentEye.clearArtifacts", () => panel.clear()),
-    vscode.commands.registerCommand("agentEye.installRuntime", () => installRuntime(context))
+    vscode.commands.registerCommand("agentEye.installRuntime", () => installRuntime(context)),
+    vscode.commands.registerCommand("agentEye.reinstallIntegrations", () => reinstallIntegrations(context))
   );
 
   registerMcpProvider(context);
   void ensureRuntimePrompt(context);
+  // Auto-place the skill + MCP registration into agents' global config so the
+  // user never has to install a skill by hand (plan: zero-setup).
+  void autoInstallIntegrations(context);
 }
 
 export function deactivate(): void {

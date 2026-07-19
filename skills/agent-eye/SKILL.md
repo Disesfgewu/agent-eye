@@ -51,13 +51,16 @@ fix code**, not a stage for a finished result. Antigravity-style rules:
 
 ## The mandatory loop
 
-1. **Run** — `start_dev_server`, then poll `get_dev_server_logs` until it says listening/ready (don't guess; read it).
-2. **Open** — `browser_navigate` to the local URL. A visible window appears — from here on, you are also demoing.
-3. **See** — `browser_snapshot` first. If it's nearly empty, the app is canvas-rendered → switch to `browser_screenshot` + `browser_click_at`.
-4. **Operate the actual user flow** — click the real buttons, type in the real inputs, submit the real forms. Test navigation by clicking links/cards and confirming the destination page rendered.
-5. **Diagnose** — after each meaningful action, check `browser_get_console_logs` (errors = bugs to fix) and `browser_get_network_requests` (wrong status/missing call = broken integration).
-6. **Fix & re-verify** — edit the code, reload (`browser_navigate` again; restart the dev server if it doesn't hot-reload), repeat the SAME flow, and confirm: console clean, network correct, UI state visibly right (snapshot/screenshot proves it).
-7. **Demo** — after it works, run the happy path once more end-to-end so the user sees the fixed behavior live. Tell them what they just saw.
+1. **Open first — probe before starting.** Try `browser_navigate` to the app's likely local URL (the port from the project's config, or a common dev port). `browser_navigate` to localhost is auto-allowed — no permission prompt. If it loads, the server is ALREADY running: skip step 1b entirely. This is the common case; do NOT blindly `start_dev_server`, which is an "ask"-tier action and will interrupt the user with an approval prompt (and may collide with an already-running server / port).
+   - **1b. Only if navigation fails** (connection refused): `start_dev_server`, then poll `get_dev_server_logs` until it says listening/ready (don't guess; read it), then `browser_navigate`. The user approves this once.
+   A visible window appears on navigate — from here on, you are also demoing.
+2. **See** — `browser_snapshot` first. If it's nearly empty, the app is canvas-rendered → switch to `browser_screenshot` + `browser_click_at`.
+3. **Operate the actual user flow** — click the real buttons, type in the real inputs, submit the real forms. Test navigation by clicking links/cards and confirming the destination page rendered.
+4. **Diagnose** — after each meaningful action, check `browser_get_console_logs` (errors = bugs to fix) and `browser_get_network_requests` (wrong status/missing call = broken integration).
+5. **Fix & re-verify** — edit the code, reload (`browser_navigate` again; restart the dev server if it doesn't hot-reload), repeat the SAME flow, and confirm: console clean, network correct, UI state visibly right (snapshot/screenshot proves it).
+6. **Demo** — after it works, run the happy path once more end-to-end so the user sees the fixed behavior live. Tell them what they just saw.
+
+> Rebuild gotcha (verify, don't assume): a compiled/bundled frontend can serve a STALE build after you edit source — service-worker caches (PWAs/Flutter), bundler kernel caches, CDN. If your change doesn't show after reload, hard-reload / clear the cache / `clean` rebuild, and only trust the screenshot, not "it compiled".
 
 ## Debugging user reports (map complaint → action)
 
