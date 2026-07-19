@@ -41,14 +41,45 @@ export function loadConfig(): ServerConfig {
   const workspaceRoot = resolveWorkspaceRoot();
   const stateDir = path.join(workspaceRoot, ".agent-eye");
   const artifactsDir = path.join(workspaceRoot, ".agent-artifacts");
+  const profilesRoot = path.join(stateDir, "browser-profile");
+  cleanStaleProfiles(profilesRoot);
   return {
     workspaceRoot,
     stateDir,
     artifactsDir,
-    browserProfileDir: path.join(stateDir, "browser-profile"),
+    // Per-instance profile (keyed by pid) so two servers never collide on the
+    // same Playwright user-data-dir — which is what a single-instance lock used
+    // to (over-)protect against, at the cost of false "another instance owns the
+    // browser" errors even when no browser was ever opened.
+    browserProfileDir: path.join(profilesRoot, `p${process.pid}`),
     policyFile: path.join(stateDir, "policy.json"),
     lockFile: path.join(stateDir, "server.lock"),
   };
+}
+
+/** Removes leftover per-pid profile dirs whose owning process is gone, so they
+ * don't accumulate after crashes/kills. Best-effort. */
+function cleanStaleProfiles(profilesRoot: string): void {
+  try {
+    for (const name of fs.readdirSync(profilesRoot)) {
+      const m = /^p(\d+)$/.exec(name);
+      if (!m) continue;
+      const pid = Number(m[1]);
+      if (pid === process.pid || isAlive(pid)) continue;
+      fs.rmSync(path.join(profilesRoot, name), { recursive: true, force: true });
+    }
+  } catch {
+    /* dir may not exist yet */
+  }
+}
+
+function isAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === "EPERM";
+  }
 }
 
 export function ensureDirs(config: ServerConfig): void {

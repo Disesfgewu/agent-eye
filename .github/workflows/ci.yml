@@ -19,6 +19,11 @@ jobs:
         run: npm run typecheck
       - name: Build (extension + bundled MCP server)
         run: npm run build
+      - name: Install Chromium + system deps (Linux)
+        run: npx --yes playwright install --with-deps chromium
+      - name: E2E browser smoke test (drives a real headless browser on Linux)
+        working-directory: packages/mcp-server
+        run: node e2e-browser.mjs
       - name: Package the .vsix
         working-directory: packages/vscode-extension
         run: npx --yes @vscode/vsce package --no-dependencies --allow-missing-repository

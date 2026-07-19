@@ -140,25 +140,26 @@ npm install            # installs workspace deps
 npm run build          # builds the extension + bundles the MCP server
 cd packages/vscode-extension
 npx @vscode/vsce package --no-dependencies
-# → produces agent-eye-0.1.0.vsix (~120 KB)
+# → produces agent-eye-0.1.1.vsix
 ```
 
 **Step 2 — install it into VS Code** (either way):
 
 ```bash
-code --install-extension agent-eye-0.1.0.vsix
+code --install-extension agent-eye.vsix
 ```
 
 …or in VS Code: open the Command Palette (`Ctrl/Cmd+Shift+P`) → **“Extensions:
-Install from VSIX…”** → pick `agent-eye-0.1.0.vsix`. Then reload VS Code.
+Install from VSIX…”** → pick the `agent-eye.vsix`. Then reload VS Code.
 
 **Step 3 — install the browser runtime (one time).** The `.vsix` bundles the MCP
 server but *not* Playwright (it's large + has native binaries). On first
 activation the extension pops a prompt — click **Install now** — or run **“Agent
 Eye: Install Browser Runtime (Playwright)”** from the Command Palette. It installs
-Playwright + Chromium into the extension's global storage; the server finds it via
-`NODE_PATH`. (Prefer your existing browser? Set `agentEye.browserChannel` to
-`chrome` or `msedge` and skip this.)
+Playwright + Chromium into the extension's global storage (programmatically, with a
+progress bar — no terminal typing); the bundled server finds it via
+`AGENT_EYE_RUNTIME_DIR`. (Prefer your existing browser? Set `agentEye.browserChannel`
+to `chrome` or `msedge` and skip this.)
 
 **Step 4 — that's it: your agents are wired up automatically.** On first run the
 extension **auto-installs** the Agent Eye skill and registers the MCP server into

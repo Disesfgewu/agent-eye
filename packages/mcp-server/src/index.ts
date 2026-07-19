@@ -9,7 +9,6 @@ import { ApprovalService } from "./approval.js";
 import { PermissionGate } from "./tools/gate.js";
 import { BrowserManager } from "./browser/browser-manager.js";
 import { DevServerManager } from "./devserver/dev-server-manager.js";
-import { InstanceLock } from "./lock.js";
 import { registerTools } from "./tools/register.js";
 
 const SERVER_NAME = "agent-eye";
@@ -20,8 +19,11 @@ async function main(): Promise<void> {
   ensureDirs(config);
   log.info("Starting Agent Eye MCP server", { workspaceRoot: config.workspaceRoot });
 
-  const lock = new InstanceLock(config.lockFile);
-  const ownsGlobals = lock.acquire();
+  // No preemptive instance lock: each server instance uses its own per-pid
+  // browser profile (see config), so two instances never collide on the profile
+  // and one never falsely blocks the other. (The old lock blocked browser tools
+  // whenever another server merely existed — even if it never opened a browser.)
+  const ownsGlobals = true;
 
   const server = new McpServer(
     { name: SERVER_NAME, version: SERVER_VERSION },
@@ -58,11 +60,9 @@ async function main(): Promise<void> {
 
   artifacts.record({
     type: "info",
-    title: ownsGlobals ? "Agent Eye connected" : "Agent Eye connected (secondary instance)",
-    detail: ownsGlobals
-      ? `Workspace: ${config.workspaceRoot}`
-      : "Another instance owns the browser/dev servers; browser tools are disabled here.",
-    status: ownsGlobals ? "ok" : "denied",
+    title: "Agent Eye connected",
+    detail: `Workspace: ${config.workspaceRoot}`,
+    status: "ok",
   });
 
   let shuttingDown = false;
@@ -79,7 +79,6 @@ async function main(): Promise<void> {
       await devServers.stopAll();
       await browser.close();
     } finally {
-      lock.release();
       process.exit(0);
     }
   };
