@@ -1,0 +1,76 @@
+/**
+ * Permission model (plan 7.1). Every tool action is classified into an
+ * ActionCategory; the policy maps each category to a Decision. Enforcement
+ * happens server-side inside the tool handlers — never by asking the agent to
+ * behave. A prompt-injected agent still cannot exceed these decisions.
+ */
+export type ActionCategory =
+  /** Read-only observation: snapshot, screenshot, console/network/dev-server logs. */
+  | "observe"
+  /** Page interaction without persistent side effects: navigate/click/type/reload within scope. */
+  | "interact"
+  /** Interaction with side effects: form submit, downloads, dialogs. */
+  | "sideEffect"
+  /** Process execution: starting/stopping dev servers (allowlisted commands). */
+  | "execute"
+  /** High risk: arbitrary JS injection (evaluate), non-allowlisted commands/domains. */
+  | "highRisk";
+
+export type Decision = "allow" | "ask" | "deny";
+
+export interface Policy {
+  /** Schema version, for forward-compatible migrations. */
+  version: number;
+  /** Per-category authorization. */
+  categories: Record<ActionCategory, Decision>;
+  /**
+   * Hostnames the browser may navigate to. Matched case-insensitively against
+   * the URL host; an entry may be an exact host or a leading-dot suffix
+   * (".example.com" matches sub.example.com). Defaults to localhost only.
+   */
+  navigationAllowlist: string[];
+  /** Executables `start_dev_server` may launch (argv[0], basename-matched). */
+  commandAllowlist: string[];
+  /** Redact Authorization/Cookie-style headers from network artifacts (plan 7.6). */
+  redactSensitiveHeaders: boolean;
+}
+
+export const DEFAULT_POLICY: Policy = {
+  version: 1,
+  // Defaults tuned for the core use case: an agent testing a LOCAL frontend.
+  // The hard guards live elsewhere and stay strict regardless of these:
+  // navigation is localhost-only, commands are allowlisted + argv-only +
+  // workspace-confined, the browser uses a dedicated profile, and highRisk
+  // (arbitrary JS eval, non-allowlisted commands/domains) is always denied.
+  // execute/sideEffect default to "allow" so the agent isn't blocked on an
+  // approval prompt that many MCP clients don't reliably surface (server-side
+  // elicitation). Tighten any of these to "ask"/"deny" in policy.json.
+  categories: {
+    observe: "allow",
+    interact: "allow",
+    sideEffect: "allow",
+    execute: "allow",
+    highRisk: "deny",
+  },
+  navigationAllowlist: ["localhost", "127.0.0.1", "[::1]"],
+  // Dev-server launchers for the common frontend stacks. Framework support is
+  // otherwise framework-agnostic (the browser sees the same DOM regardless);
+  // this list only governs which dev command may be spawned. Starts are "ask"
+  // by default and cwd is workspace-confined, so this stays safe to broaden.
+  commandAllowlist: [
+    // JS/TS package managers & runtimes
+    "npm", "pnpm", "yarn", "bun", "node", "npx", "deno",
+    // JS/TS bundlers & meta-frameworks
+    "vite", "next", "nuxt", "ng", "webpack", "rollup", "parcel", "astro",
+    "remix", "svelte-kit", "gatsby", "expo", "quasar", "ionic", "storybook",
+    "react-scripts", "vue-cli-service", "turbo",
+    // Flutter / Dart
+    "flutter", "dart",
+    // Python (http.server, Django, Flask, uvicorn, ...)
+    "python", "python3", "py", "uvicorn", "flask", "django-admin", "manage.py",
+    // PHP / Ruby / static & SSG servers
+    "php", "ruby", "bundle", "rails", "jekyll", "hugo",
+    "http-server", "serve", "live-server", "static-server", "wrangler",
+  ],
+  redactSensitiveHeaders: true,
+};

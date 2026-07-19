@@ -1,0 +1,116 @@
+{
+  "name": "agent-eye",
+  "displayName": "Agent Eye",
+  "description": "Give AI coding agents a visible browser and dev-server control for autonomous frontend run-test-debug loops, with server-side permission controls.",
+  "version": "0.1.0",
+  "publisher": "agent-eye",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.104.0",
+    "node": ">=20"
+  },
+  "categories": ["AI", "Other"],
+  "icon": "media/icon.png",
+  "repository": { "type": "git", "url": "https://github.com/agent-eye/agent-eye" },
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "agentEye.setupForClaudeCode",
+        "title": "Agent Eye: Setup for Claude Code (write .mcp.json)"
+      },
+      {
+        "command": "agentEye.openPanel",
+        "title": "Agent Eye: Open Activity Panel"
+      },
+      {
+        "command": "agentEye.openPolicy",
+        "title": "Agent Eye: Open Permission Policy"
+      },
+      {
+        "command": "agentEye.clearArtifacts",
+        "title": "Agent Eye: Clear Artifacts"
+      },
+      {
+        "command": "agentEye.installRuntime",
+        "title": "Agent Eye: Install Browser Runtime (Playwright)"
+      },
+      {
+        "command": "agentEye.reinstallIntegrations",
+        "title": "Agent Eye: Reinstall Agent Integrations (skill + MCP)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agentEye",
+          "title": "Agent Eye",
+          "icon": "media/eye.svg"
+        }
+      ]
+    },
+    "views": {
+      "agentEye": [
+        {
+          "type": "webview",
+          "id": "agentEye.activity",
+          "name": "Activity"
+        }
+      ]
+    },
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "agentEye.mcpProvider",
+        "label": "Agent Eye"
+      }
+    ],
+    "configuration": {
+      "title": "Agent Eye",
+      "properties": {
+        "agentEye.browserChannel": {
+          "type": "string",
+          "enum": ["", "chrome", "msedge", "chrome-beta"],
+          "default": "",
+          "description": "Browser channel for Playwright. Empty uses the bundled Chromium (run 'npx playwright install chromium'). 'chrome'/'msedge' use your installed browser."
+        },
+        "agentEye.logLevel": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error"],
+          "default": "info",
+          "description": "Log verbosity for the Agent Eye MCP server (written to stderr / the server output channel)."
+        },
+        "agentEye.showCursor": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a pulsing cursor overlay in the browser so you can watch where the agent points and clicks (Playwright doesn't move the real OS pointer)."
+        },
+        "agentEye.slowMoMs": {
+          "type": "number",
+          "default": 0,
+          "description": "Slow down each browser action by this many milliseconds so you can follow along. 0 = full speed. Try 300–800 while watching."
+        },
+        "agentEye.autoInstall": {
+          "type": "boolean",
+          "default": true,
+          "description": "On first run, automatically install the Agent Eye skill (and register the MCP server) into detected AI agents' global config (Claude Code ~/.claude, Codex ~/.codex) so frontend tasks use the visible browser without any manual setup."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf dist",
+    "vscode:prepublish": "node esbuild.mjs --production"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/vscode": "^1.104.0",
+    "esbuild": "^0.25.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.0"
+  }
+}

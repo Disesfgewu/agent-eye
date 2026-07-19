@@ -1,0 +1,17 @@
+{
+  "mcpServers": {
+    "agent-eye": {
+      "command": "node",
+      "args": [
+        "c:/Users/marti/Desktop/agent-eye/packages/mcp-server/dist/index.js",
+        "--workspace",
+        "c:/Users/marti/Desktop/agent-eye/test/ai-shop"
+      ],
+      "env": {
+        "AGENT_EYE_SHOW_CURSOR": "1",
+        "AGENT_EYE_SLOWMO": "500",
+        "AGENT_EYE_LOG_LEVEL": "warn"
+      }
+    }
+  }
+}

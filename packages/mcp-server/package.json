@@ -1,0 +1,34 @@
+{
+  "name": "@agent-eye/mcp-server",
+  "version": "0.1.0",
+  "description": "MCP server exposing Playwright browser control and dev-server management for AI coding agents, with server-side permission enforcement.",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "agent-eye-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "clean": "rimraf dist",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "playwright": "^1.61.1",
+    "tree-kill": "^1.2.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "rimraf": "^6.0.1",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
