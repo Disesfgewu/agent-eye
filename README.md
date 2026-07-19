@@ -31,6 +31,15 @@ SQLite).
 |---|---|
 | ![detail](docs/screenshots/03-detail.png) | ![order](docs/screenshots/04-order-confirmed.png) |
 
+**Catching a real bug** — the kind that compiles fine but breaks at runtime. A
+wrong API endpoint (`/productz`) makes the page fail; Agent Eye pinpoints it from
+the **network log** (`GET /api/productz → 404`), and after the one-line fix,
+re-verifies on the real frontend (`GET /api/products → 200`, products render):
+
+| Bug: products fail to load (404) | Fixed & re-verified on the real UI |
+|---|---|
+| ![bug](docs/screenshots/bug-state.png) | ![fixed](docs/screenshots/bug-fixed.png) |
+
 > Every screenshot is real output captured by Agent Eye's `browser_screenshot`
 > and saved to the activity timeline. To run the demo yourself: build the repo,
 > start the sample servers, then run `packages/mcp-server/live-demo.mjs`
