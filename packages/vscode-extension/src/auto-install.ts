@@ -13,7 +13,7 @@ import { buildServerEnv } from "./server-env.js";
  * `agentEye.autoInstall`, and safe (backs up before editing shared config,
  * never clobbers an existing agent-eye entry, refreshes only our own files).
  */
-const INTEGRATIONS_VERSION = "2";
+const INTEGRATIONS_VERSION = "3";
 
 function homeDir(): string {
   return process.env.AGENT_EYE_HOME_OVERRIDE || os.homedir();
@@ -52,12 +52,17 @@ function registerClaudeCodeMcp(context: vscode.ExtensionContext, home: string): 
       if (!fs.existsSync(backup)) fs.writeFileSync(backup, raw, "utf8");
     }
     const servers = (json.mcpServers ?? (json.mcpServers = {})) as Record<string, unknown>;
-    if (servers["agent-eye"]) return undefined; // never clobber an existing entry
     // No --workspace: the server defaults to the cwd Claude Code launches it in
     // (the current project), which is what we want globally.
-    servers["agent-eye"] = { command: "node", args: [serverEntry], env: buildServerEnv(context) };
+    const desired = { command: "node", args: [serverEntry], env: buildServerEnv(context) };
+    const existing = servers["agent-eye"];
+    // Re-point on every change — crucially when the extension UPDATES, its
+    // install dir (and thus serverEntry) changes; without this the registration
+    // would keep pointing at the OLD version's server (or a removed path).
+    if (existing && JSON.stringify(existing) === JSON.stringify(desired)) return undefined;
+    servers["agent-eye"] = desired;
     fs.writeFileSync(file, JSON.stringify(json, null, 2) + "\n", "utf8");
-    return "Claude Code MCP (~/.claude.json)";
+    return existing ? "Claude Code MCP (updated to this version)" : "Claude Code MCP (~/.claude.json)";
   } catch {
     return undefined;
   }
@@ -66,32 +71,34 @@ function registerClaudeCodeMcp(context: vscode.ExtensionContext, home: string): 
 export async function autoInstallIntegrations(context: vscode.ExtensionContext): Promise<void> {
   const cfg = vscode.workspace.getConfiguration("agentEye");
   if (!cfg.get<boolean>("autoInstall", true)) return;
-  if (context.globalState.get<string>("agentEye.integrationsVersion") === INTEGRATIONS_VERSION) return;
 
   const source = skillSource(context);
   if (!source) return;
   const home = homeDir();
-  const installed: string[] = [];
 
-  // Claude Code — global skill (every project, zero per-project setup).
-  if (installSkillInto(path.join(home, ".claude", "skills"), source)) {
-    installed.push("Claude Code skill");
+  // Run on EVERY activation (idempotent). This is what makes updates work: the
+  // MCP registration is re-pointed at this extension version's server, and the
+  // skill refreshed — instead of being skipped by a "already installed once"
+  // guard that left ~/.claude.json pointing at the previous version's path.
+  installSkillInto(path.join(home, ".claude", "skills"), source);
+  if (fs.existsSync(path.join(home, ".codex"))) {
+    installSkillInto(path.join(home, ".codex", "skills"), source);
   }
-  // OpenAI Codex — global skill if Codex is present.
-  if (fs.existsSync(path.join(home, ".codex")) && installSkillInto(path.join(home, ".codex", "skills"), source)) {
-    installed.push("Codex skill");
-  }
-  // Claude Code CLI — register the MCP server globally.
-  const mcp = registerClaudeCodeMcp(context, home);
-  if (mcp) installed.push(mcp);
+  const mcpChange = registerClaudeCodeMcp(context, home); // string if it wrote (new/updated)
   // (VS Code Copilot MCP is registered live via McpServerDefinitionProvider.)
 
-  context.globalState.update("agentEye.integrationsVersion", INTEGRATIONS_VERSION);
-
-  if (installed.length) {
+  // Notify at most once per integrations version (first install / upgrade) so we
+  // don't nag on every launch; also notify if the MCP path was just re-pointed.
+  const seen = context.globalState.get<string>("agentEye.integrationsVersion");
+  if (seen !== INTEGRATIONS_VERSION) {
+    context.globalState.update("agentEye.integrationsVersion", INTEGRATIONS_VERSION);
     void vscode.window.showInformationMessage(
-      `Agent Eye is ready: installed so AI agents automatically use the visible browser for frontend work (${installed.join(", ")}). ` +
-        `Disable via the agentEye.autoInstall setting.`
+      "Agent Eye is ready: AI agents will automatically use the visible browser for frontend work. " +
+        "Restart your agent (or reload its MCP servers) to pick up the tools. Disable via agentEye.autoInstall."
+    );
+  } else if (mcpChange) {
+    void vscode.window.showInformationMessage(
+      "Agent Eye: updated the MCP registration to this version — restart your agent (or reload its MCP servers) to use it."
     );
   }
 }

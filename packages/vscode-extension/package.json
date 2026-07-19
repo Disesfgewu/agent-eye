@@ -2,7 +2,7 @@
   "name": "agent-eye",
   "displayName": "Agent Eye",
   "description": "Give AI coding agents a visible browser and dev-server control for autonomous frontend run-test-debug loops, with server-side permission controls.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "agent-eye",
   "license": "MIT",
   "engines": {

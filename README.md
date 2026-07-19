@@ -140,7 +140,7 @@ npm install            # installs workspace deps
 npm run build          # builds the extension + bundles the MCP server
 cd packages/vscode-extension
 npx @vscode/vsce package --no-dependencies
-# → produces agent-eye-0.1.1.vsix
+# → produces agent-eye-0.1.2.vsix
 ```
 
 **Step 2 — install it into VS Code** (either way):
