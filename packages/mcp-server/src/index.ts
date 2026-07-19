@@ -70,6 +70,11 @@ async function main(): Promise<void> {
     if (shuttingDown) return;
     shuttingDown = true;
     log.info("Shutting down", { signal });
+    // Hard backstop: never hang on exit — if cleanup stalls, force-exit so we
+    // don't leave a zombie server (Playwright's own SIGINT/TERM handlers close
+    // the browser; this guarantees the process itself goes away).
+    const hardExit = setTimeout(() => process.exit(0), 4000);
+    hardExit.unref?.();
     try {
       await devServers.stopAll();
       await browser.close();
@@ -81,8 +86,10 @@ async function main(): Promise<void> {
 
   process.on("SIGINT", () => void shutdown("SIGINT"));
   process.on("SIGTERM", () => void shutdown("SIGTERM"));
+  process.on("SIGHUP", () => void shutdown("SIGHUP"));
   // When the MCP client disconnects, stdin ends — treat it as shutdown.
   process.stdin.on("close", () => void shutdown("stdin-close"));
+  process.stdin.on("end", () => void shutdown("stdin-end"));
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

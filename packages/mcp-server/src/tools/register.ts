@@ -342,6 +342,22 @@ export function registerTools(ctx: ToolContext): void {
     }
   );
 
+  // ---- browser_close -------------------------------------------------------
+  server.registerTool(
+    "browser_close",
+    {
+      title: "Close the browser window",
+      description:
+        "Close the visible browser window when the frontend task is fully done and verified. The server keeps running and will reopen a fresh window automatically on the next browser tool call. (The window also auto-closes after a few minutes of inactivity.)",
+      inputSchema: {},
+    },
+    async (): Promise<ToolResult> => {
+      await browser.close();
+      artifacts.record({ type: "info", tool: "browser_close", title: "Closed the browser window", status: "ok" });
+      return text("Browser window closed.");
+    }
+  );
+
   // ---- browser_show_status (live narration for the watching user) ----------
   server.registerTool(
     "browser_show_status",

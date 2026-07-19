@@ -167,6 +167,25 @@ export class BrowserManager {
   private readonly inputLock =
     process.env.AGENT_EYE_INPUT_LOCK === "1" ||
     (!isHeadless() && process.env.AGENT_EYE_INPUT_LOCK !== "0");
+  // Auto-close the browser window after this many ms with no browser activity,
+  // so it doesn't linger after the agent finishes (the MCP server itself stays
+  // alive and relaunches the browser lazily on the next use). 0 disables.
+  private readonly idleCloseMs =
+    process.env.AGENT_EYE_IDLE_CLOSE_MS === undefined
+      ? 180_000
+      : Number(process.env.AGENT_EYE_IDLE_CLOSE_MS);
+  private idleTimer: ReturnType<typeof setTimeout> | undefined;
+
+  /** Resets the idle-close countdown; call on every browser interaction. */
+  private touch(): void {
+    if (this.idleCloseMs <= 0) return;
+    if (this.idleTimer) clearTimeout(this.idleTimer);
+    this.idleTimer = setTimeout(() => {
+      log.info("Closing idle browser window (no activity)", { idleCloseMs: this.idleCloseMs });
+      void this.close();
+    }, this.idleCloseMs);
+    this.idleTimer.unref?.(); // don't keep the process alive just for this timer
+  }
 
   constructor(
     private readonly profileDir: string,
@@ -228,7 +247,35 @@ export class BrowserManager {
     const pages = context.pages();
     this.page = pages.length > 0 ? pages[0] : await context.newPage();
     this.attachListeners(this.page);
+    await this.forceWindowBounds(this.page);
+    this.touch();
     return this.page;
+  }
+
+  /**
+   * The persistent profile remembers the OS window's last size/position and
+   * restores it on every launch — Chromium does this regardless of the
+   * `viewport` launch option, which only controls the CDP-emulated viewport
+   * used for layout/screenshots. Left unchecked, a window that was ever
+   * resized small (by the user, a previous crash, whatever) stays small
+   * forever, so the human watching the real window sees a cropped page while
+   * our screenshots (captured against the emulated viewport) look fine. Force
+   * the real window to match on every launch so what's on screen is what we
+   * verify against.
+   */
+  private async forceWindowBounds(page: Page): Promise<void> {
+    if (process.env.AGENT_EYE_HEADLESS === "1") return;
+    try {
+      const client = await page.context().newCDPSession(page);
+      const { windowId } = await client.send("Browser.getWindowForTarget");
+      await client.send("Browser.setWindowBounds", {
+        windowId,
+        bounds: { width: 1280, height: 800, windowState: "normal" },
+      });
+      await client.detach().catch(() => undefined);
+    } catch (err) {
+      log.debug("Failed to force window bounds", { error: String(err) });
+    }
   }
 
   /**
@@ -458,6 +505,10 @@ export class BrowserManager {
   }
 
   async close(): Promise<void> {
+    if (this.idleTimer) {
+      clearTimeout(this.idleTimer);
+      this.idleTimer = undefined;
+    }
     if (this.context) {
       await this.context.close().catch(() => undefined);
       this.context = undefined;

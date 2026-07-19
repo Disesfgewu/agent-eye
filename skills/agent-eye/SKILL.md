@@ -38,6 +38,7 @@ fix code**, not a stage for a finished result. Antigravity-style rules:
 | Tool | Use for |
 |---|---|
 | `browser_show_status(message)` | Live narration banner in the window — tell the watching user what you're doing right now |
+| `browser_close()` | Close the window when the task is fully done (auto-closes after idle too) |
 | `start_dev_server(id, command, args?, cwd?)` | Launch frontend/backend dev servers (allowlisted commands, cwd inside workspace) |
 | `get_dev_server_logs(id, limit?)` | Poll startup output ("listening", "serving", errors) |
 | `stop_dev_server(id)` | Tear down a server you started |
@@ -59,6 +60,7 @@ fix code**, not a stage for a finished result. Antigravity-style rules:
 4. **Diagnose** — after each meaningful action, check `browser_get_console_logs` (errors = bugs to fix) and `browser_get_network_requests` (wrong status/missing call = broken integration).
 5. **Fix & re-verify** — edit the code, reload (`browser_navigate` again; restart the dev server if it doesn't hot-reload), repeat the SAME flow, and confirm: console clean, network correct, UI state visibly right (snapshot/screenshot proves it).
 6. **Demo** — after it works, run the happy path once more end-to-end so the user sees the fixed behavior live. Tell them what they just saw.
+7. **Close** — when the whole task is finished and verified, call `browser_close` to close the window so it doesn't linger. (It also auto-closes after a few minutes idle, but close it explicitly when you're done.)
 
 > Rebuild gotcha (verify, don't assume): a compiled/bundled frontend can serve a STALE build after you edit source — service-worker caches (PWAs/Flutter), bundler kernel caches, CDN. If your change doesn't show after reload, hard-reload / clear the cache / `clean` rebuild, and only trust the screenshot, not "it compiled".
 
