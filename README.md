@@ -155,11 +155,15 @@ there yourself (project) / to `~/.claude/skills/` (all projects).
 Enforced **inside the server**, so a manipulated agent can't get past it. Full
 detail in [`plan.v1.md` §7](plan.v1.md).
 
-- **Action categories × allow/ask/deny** (`.agent-eye/policy.json`). Defaults:
-  read-only observation `allow`; page interaction `allow`; side-effecting actions
-  and dev-server starts `ask`; high-risk (`evaluate`, non-allowlisted commands/
-  domains) `deny`. A denied action returns a clear *policy boundary* error so the
-  agent knows not to retry.
+- **Action categories × allow/ask/deny** (`.agent-eye/policy.json`). Defaults are
+  tuned for testing a **local** frontend: observation, page interaction,
+  side-effecting actions, and dev-server starts all `allow`; high-risk
+  (`evaluate`, non-allowlisted commands/domains) `deny`. The hard guards below
+  hold regardless, and you can tighten any category to `ask`/`deny` in
+  `policy.json`. (`ask` uses MCP elicitation, which not all clients surface —
+  hence the local-dev defaults lean on the hard guards rather than prompts.)
+  A denied action returns a clear *policy boundary* error so the agent knows not
+  to retry.
 - **Navigation scope**: only http(s) to allowlisted hosts (localhost by default).
   `file://`/`chrome://`, cloud-metadata and link-local IPs are hard-blocked
   regardless of policy (SSRF defense).

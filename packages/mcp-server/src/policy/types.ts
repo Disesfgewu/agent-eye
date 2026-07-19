@@ -37,11 +37,19 @@ export interface Policy {
 
 export const DEFAULT_POLICY: Policy = {
   version: 1,
+  // Defaults tuned for the core use case: an agent testing a LOCAL frontend.
+  // The hard guards live elsewhere and stay strict regardless of these:
+  // navigation is localhost-only, commands are allowlisted + argv-only +
+  // workspace-confined, the browser uses a dedicated profile, and highRisk
+  // (arbitrary JS eval, non-allowlisted commands/domains) is always denied.
+  // execute/sideEffect default to "allow" so the agent isn't blocked on an
+  // approval prompt that many MCP clients don't reliably surface (server-side
+  // elicitation). Tighten any of these to "ask"/"deny" in policy.json.
   categories: {
     observe: "allow",
     interact: "allow",
-    sideEffect: "ask",
-    execute: "ask",
+    sideEffect: "allow",
+    execute: "allow",
     highRisk: "deny",
   },
   navigationAllowlist: ["localhost", "127.0.0.1", "[::1]"],

@@ -12,11 +12,16 @@ import os
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
+# Defaults tuned for testing a LOCAL frontend. Hard guards stay strict
+# regardless (localhost-only navigation, allowlisted+argv+cwd-confined commands,
+# dedicated profile, highRisk always denied). execute/sideEffect default to
+# "allow" so the agent isn't blocked on an approval channel many MCP clients
+# don't reliably surface; tighten to "ask"/"deny" in policy.json if desired.
 DEFAULT_CATEGORIES = {
     "observe": "allow",
     "interact": "allow",
-    "sideEffect": "ask",
-    "execute": "ask",
+    "sideEffect": "allow",
+    "execute": "allow",
     "highRisk": "deny",
 }
 

@@ -65,19 +65,22 @@ const CURSOR_SCRIPT = `(() => {
     dot.style.cssText =
       'position:fixed;z-index:2147483647;left:50%;top:50%;width:24px;height:24px;border-radius:50%;' +
       'background:rgba(255,60,60,.7);border:2px solid #fff;pointer-events:none;' +
-      'transform:translate(-50%,-50%);transition:left .12s ease-out,top .12s ease-out;' +
+      'transform:translate(-50%,-50%);transition:left .25s ease-out,top .25s ease-out;' +
       'animation:ae-pulse 1.5s infinite;box-shadow:0 0 12px rgba(0,0,0,.5)';
     document.body.appendChild(dot);
-    addEventListener('mousemove', (e) => { dot.style.left = e.clientX + 'px'; dot.style.top = e.clientY + 'px'; }, true);
-    addEventListener('mousedown', (e) => {
+    // The dot represents the AGENT's cursor. It is driven ONLY by explicit
+    // agent moves — deliberately NOT by 'mousemove', so it never chases the
+    // real user's mouse. CSS transition makes each set glide smoothly.
+    window.__agentEyeMoveCursor = (x, y) => { dot.style.left = x + 'px'; dot.style.top = y + 'px'; };
+    window.__agentEyeRipple = (x, y) => {
       const r = document.createElement('div');
       r.style.cssText =
-        'position:fixed;z-index:2147483646;left:' + e.clientX + 'px;top:' + e.clientY + 'px;' +
+        'position:fixed;z-index:2147483646;left:' + x + 'px;top:' + y + 'px;' +
         'width:22px;height:22px;border-radius:50%;background:rgba(255,60,60,.45);pointer-events:none;' +
         'animation:ae-ripple .5s ease-out forwards';
       document.body.appendChild(r);
       setTimeout(() => r.remove(), 520);
-    }, true);
+    };
   };
   install();
 })()`;
@@ -197,6 +200,15 @@ export class BrowserManager {
         ],
         ignoreDefaultArgs: ["--enable-automation"],
       });
+      // If the user closes the browser window (or it crashes), the context
+      // object we're holding is now dead but stays non-undefined — without
+      // this, every future call would keep reusing it and fail with "Target
+      // page, context or browser has been closed". Drop our refs so the next
+      // ensurePage() relaunches a fresh browser instead.
+      this.context.on("close", () => {
+        this.context = undefined;
+        this.page = undefined;
+      });
     }
 
     const context = this.context;
@@ -249,19 +261,43 @@ export class BrowserManager {
     }
   }
 
-  /** Animate the (real) mouse to an element's centre so the visible cursor
-   * glides there before acting — only when the watch-along cursor is enabled. */
-  private async moveCursorTo(page: Page, locator: ReturnType<Page["locator"]>): Promise<void> {
+  /** Sets the AGENT cursor dot to (x, y). Explicit — the dot never tracks the
+   * real user's mouse. CSS transition makes it glide. */
+  private async setCursor(page: Page, x: number, y: number): Promise<void> {
     if (!this.showCursor) return;
+    await page
+      .evaluate(`window.__agentEyeMoveCursor && window.__agentEyeMoveCursor(${x}, ${y})`)
+      .catch(() => undefined);
+  }
+
+  private async ripple(page: Page, x: number, y: number): Promise<void> {
+    if (!this.showCursor) return;
+    await page
+      .evaluate(`window.__agentEyeRipple && window.__agentEyeRipple(${x}, ${y})`)
+      .catch(() => undefined);
+  }
+
+  /** Glides the cursor dot to an element's centre before acting; returns the
+   * centre so the caller can ripple there on click. */
+  private async moveCursorTo(
+    page: Page,
+    locator: ReturnType<Page["locator"]>
+  ): Promise<{ x: number; y: number } | undefined> {
+    if (!this.showCursor) return undefined;
     try {
       await locator.scrollIntoViewIfNeeded({ timeout: 5_000 });
       const box = await locator.boundingBox();
       if (box) {
-        await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 24 });
+        const cx = box.x + box.width / 2;
+        const cy = box.y + box.height / 2;
+        await this.setCursor(page, cx, cy);
+        await page.waitForTimeout(260); // let the dot glide before clicking
+        return { x: cx, y: cy };
       }
     } catch {
       /* cursor animation is best-effort; never block the real action */
     }
+    return undefined;
   }
 
   private attachListeners(page: Page): void {
@@ -321,10 +357,9 @@ export class BrowserManager {
     await page.bringToFront().catch(() => undefined);
     await page.goto(url, { waitUntil: "domcontentloaded" });
     if (this.showCursor) {
-      // Nudge the mouse so the overlay cursor appears immediately, and glide it
-      // in so the user can spot it before any interaction.
+      // Place the agent cursor at centre so it's visible immediately.
       const vp = page.viewportSize() ?? { width: 1280, height: 800 };
-      await page.mouse.move(vp.width / 2, vp.height / 2, { steps: 12 }).catch(() => undefined);
+      await this.setCursor(page, vp.width / 2, vp.height / 2);
     }
     return { url: page.url(), title: await page.title() };
   }
@@ -332,8 +367,9 @@ export class BrowserManager {
   async click(refOrSelector: string): Promise<void> {
     const page = await this.ensurePage();
     const locator = this.locate(page, refOrSelector);
-    await this.moveCursorTo(page, locator);
+    const centre = await this.moveCursorTo(page, locator);
     await this.withUnlocked(page, () => locator.click({ timeout: 10_000 }));
+    if (centre) await this.ripple(page, centre.x, centre.y);
   }
 
   async type(refOrSelector: string, text: string, submit: boolean): Promise<void> {
@@ -352,9 +388,11 @@ export class BrowserManager {
   async clickAt(x: number, y: number): Promise<void> {
     const page = await this.ensurePage();
     if (this.showCursor) {
-      await page.mouse.move(x, y, { steps: 20 }).catch(() => undefined);
+      await this.setCursor(page, x, y);
+      await page.waitForTimeout(260); // let the dot glide to the target first
     }
     await this.withUnlocked(page, () => page.mouse.click(x, y));
+    await this.ripple(page, x, y);
   }
 
   async reload(): Promise<{ url: string; title: string }> {
