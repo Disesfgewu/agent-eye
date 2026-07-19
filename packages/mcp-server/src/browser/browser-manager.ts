@@ -246,13 +246,13 @@ export class BrowserManager {
       // this, every future call would keep reusing it and fail with "Target
       // page, context or browser has been closed". Drop our refs so the next
       // ensurePage() relaunches a fresh browser instead.
-      this.context.on("close", () => {
+      this.context?.on("close", () => {
         this.context = undefined;
         this.page = undefined;
       });
     }
 
-    const context = this.context;
+    const context = this.context!;
     if (this.showCursor) {
       await context.addInitScript(CURSOR_SCRIPT);
       await context.addInitScript(STATUS_SCRIPT);
