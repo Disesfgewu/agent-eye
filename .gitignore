@@ -13,6 +13,8 @@ out/
 
 # VS Code extension packaging
 *.vsix
+# …except the committed download copy at the repo root
+!/agent-eye.vsix
 
 # Logs
 *.log

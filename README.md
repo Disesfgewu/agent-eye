@@ -16,17 +16,13 @@ just one.
 
 ## ⬇️ Download
 
-[![Download the .vsix](https://img.shields.io/badge/⬇%20Download-agent--eye.vsix-6366F1?style=for-the-badge)](https://github.com/OWNER/REPO/releases/latest)
+**[⬇️ Download `agent-eye.vsix`](agent-eye.vsix)** — then install it in VS Code
+(*Extensions: Install from VSIX…*, see [Installation](#installation)).
 
-Click the button (or open the **[Releases page](https://github.com/OWNER/REPO/releases/latest)**),
-download the latest **`agent-eye-*.vsix`**, then install it — see
-**[Installation](#installation)** (VS Code → *Extensions: Install from VSIX…*).
-Prefer to build it yourself? That's in Installation too.
-
-> The downloadable `.vsix` is attached to a GitHub Release automatically when a
-> `v*` tag is pushed (`.github/workflows/publish.yml`). **Replace `OWNER/REPO`
-> in the two links above with your GitHub repository** so the button points at
-> your releases.
+> On GitHub, that link opens the file's page with a **Download** button. The
+> committed `agent-eye.vsix` is refreshed on each release; you can also build it
+> yourself (Installation) or let the `v*`-tag workflow attach it to a GitHub
+> Release.
 
 ## Demo
 
