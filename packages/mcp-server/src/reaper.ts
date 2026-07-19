@@ -97,6 +97,31 @@ export class ProcessReaper {
   }
 }
 
+/** Finds PIDs whose command line references `dir` — used to identify exactly
+ * which OS processes belong to a browser launched with that unique per-instance
+ * user-data-dir (Playwright doesn't expose the browser PID publicly). */
+export function findPidsUsingDir(dir: string): number[] {
+  try {
+    if (isWindows) {
+      const esc = dir.replace(/'/g, "''");
+      const r = spawnSync(
+        "powershell",
+        ["-NoProfile", "-Command", `Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*${esc}*' } | Select-Object -ExpandProperty ProcessId`],
+        { encoding: "utf8", timeout: 10000 }
+      );
+      return parsePids(r.stdout);
+    }
+    const r = spawnSync("pgrep", ["-f", dir], { encoding: "utf8", timeout: 10000 });
+    return parsePids(r.stdout);
+  } catch {
+    return [];
+  }
+}
+
+function parsePids(s: string | null | undefined): number[] {
+  return (s ?? "").split(/\s+/).map(Number).filter((n) => Number.isInteger(n) && n > 0 && n !== process.pid);
+}
+
 function isAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);

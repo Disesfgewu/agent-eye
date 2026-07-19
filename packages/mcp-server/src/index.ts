@@ -49,7 +49,8 @@ async function main(): Promise<void> {
   const gate = new PermissionGate(policy, approval, artifacts);
   const browser = new BrowserManager(
     config.browserProfileDir,
-    process.env.AGENT_EYE_BROWSER_CHANNEL || undefined
+    process.env.AGENT_EYE_BROWSER_CHANNEL || undefined,
+    reaper
   );
   const devServers = new DevServerManager(reaper);
 

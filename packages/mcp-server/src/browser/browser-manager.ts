@@ -1,6 +1,12 @@
 import type { BrowserContext, Page, ConsoleMessage } from "playwright";
 import { log } from "../logger.js";
 import { RingBuffer } from "./ring-buffer.js";
+import { findPidsUsingDir } from "../reaper.js";
+
+interface Reaper {
+  track(pid?: number): void;
+  untrack(pid?: number): void;
+}
 
 /** Lazily loads Playwright so the server still starts (and other tools work)
  * when the browser runtime isn't installed yet — the failure surfaces as a
@@ -205,9 +211,14 @@ export class BrowserManager {
     this.idleTimer.unref?.(); // don't keep the process alive just for this timer
   }
 
+  /** OS PIDs of the browser processes this instance owns (discovered by the
+   * unique per-instance profile dir), for strict accounting + reaping. */
+  private ownedPids: number[] = [];
+
   constructor(
     private readonly profileDir: string,
-    private readonly channel: string | undefined
+    private readonly channel: string | undefined,
+    private readonly reaper?: Reaper
   ) {}
 
   private async ensurePage(): Promise<Page> {
@@ -247,9 +258,15 @@ export class BrowserManager {
       // page, context or browser has been closed". Drop our refs so the next
       // ensurePage() relaunches a fresh browser instead.
       this.context?.on("close", () => {
+        this.releaseOwnedPids();
         this.context = undefined;
         this.page = undefined;
       });
+      // Strict accounting: record exactly which OS processes this instance owns
+      // (by our unique profile dir) and register them for reaping.
+      this.ownedPids = findPidsUsingDir(this.profileDir);
+      for (const pid of this.ownedPids) this.reaper?.track(pid);
+      log.info("Browser opened", { profileDir: this.profileDir, ownedPids: this.ownedPids });
     }
 
     const context = this.context!;
@@ -529,9 +546,15 @@ export class BrowserManager {
     }
     if (this.context) {
       await this.context.close().catch(() => undefined);
+      this.releaseOwnedPids();
       this.context = undefined;
       this.page = undefined;
     }
+  }
+
+  private releaseOwnedPids(): void {
+    for (const pid of this.ownedPids) this.reaper?.untrack(pid);
+    this.ownedPids = [];
   }
 }
 

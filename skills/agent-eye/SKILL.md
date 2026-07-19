@@ -60,7 +60,7 @@ fix code**, not a stage for a finished result. Antigravity-style rules:
 4. **Diagnose** — after each meaningful action, check `browser_get_console_logs` (errors = bugs to fix) and `browser_get_network_requests` (wrong status/missing call = broken integration).
 5. **Fix & re-verify** — edit the code, reload (`browser_navigate` again; restart the dev server if it doesn't hot-reload), repeat the SAME flow, and confirm: console clean, network correct, UI state visibly right (snapshot/screenshot proves it).
 6. **Demo** — after it works, run the happy path once more end-to-end so the user sees the fixed behavior live. Tell them what they just saw.
-7. **Close** — when the whole task is finished and verified, call `browser_close` to close the window so it doesn't linger. (It also auto-closes after a few minutes idle, but close it explicitly when you're done.)
+7. **Close when done** — the browser is an ephemeral resource, like a human opening a browser to check something and closing it when finished. It opens on demand (the first browser tool call) and you MUST call `browser_close` as soon as the frontend task is verified — don't leave it open for the rest of the session. If you need it again later, it reopens automatically. (An idle auto-close is only a safety net.) Multiple sessions can each open their own browser independently — there is no lock; each instance owns its own window/processes.
 
 > Rebuild gotcha (verify, don't assume): a compiled/bundled frontend can serve a STALE build after you edit source — service-worker caches (PWAs/Flutter), bundler kernel caches, CDN. If your change doesn't show after reload, hard-reload / clear the cache / `clean` rebuild, and only trust the screenshot, not "it compiled".
 
