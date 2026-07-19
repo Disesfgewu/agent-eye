@@ -1,6 +1,5 @@
 import * as vscode from "vscode";
-import * as fs from "node:fs";
-import { runtimeNodeModules } from "./runtime.js";
+import { runtimeDir, runtimeNodeModules } from "./runtime.js";
 
 /**
  * Builds the environment passed to the MCP server from the `agentEye.*`
@@ -22,13 +21,13 @@ export function buildServerEnv(context: vscode.ExtensionContext): Record<string,
   if (channel) env.AGENT_EYE_BROWSER_CHANNEL = channel;
   if (slowMoMs > 0) env.AGENT_EYE_SLOWMO = String(slowMoMs);
 
-  const nodeModules = runtimeNodeModules(context);
-  if (fs.existsSync(nodeModules)) {
-    env.NODE_PATH = process.env.NODE_PATH ? `${nodeModules}${pathDelim()}${process.env.NODE_PATH}` : nodeModules;
-  }
+  // Tell the bundled server where the browser runtime lives so it can resolve
+  // Playwright from there (AGENT_EYE_RUNTIME_DIR → createRequire, see
+  // browser-manager loadChromium). Set even before the runtime is installed —
+  // the registration is written once at activation, and this path becomes valid
+  // as soon as the user runs "Install Browser Runtime", with no re-register.
+  // NODE_PATH is a harmless extra for any CJS require paths.
+  env.AGENT_EYE_RUNTIME_DIR = runtimeDir(context);
+  env.NODE_PATH = runtimeNodeModules(context);
   return env;
-}
-
-function pathDelim(): string {
-  return process.platform === "win32" ? ";" : ":";
 }

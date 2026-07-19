@@ -4,8 +4,26 @@ import { RingBuffer } from "./ring-buffer.js";
 
 /** Lazily loads Playwright so the server still starts (and other tools work)
  * when the browser runtime isn't installed yet — the failure surfaces as a
- * clear tool error instead of a startup crash. */
+ * clear tool error instead of a startup crash.
+ *
+ * When packaged in the VS Code extension, Playwright is provisioned into a
+ * runtime dir (globalStorage) and its location is passed as
+ * AGENT_EYE_RUNTIME_DIR. We resolve it from there with createRequire (CJS
+ * resolution), because the esbuild bundle emits a native `import("playwright")`
+ * and ESM dynamic import does NOT honor NODE_PATH. In dev (running from the repo)
+ * the env var is unset and the plain import resolves from node_modules normally. */
 async function loadChromium() {
+  const runtimeDir = process.env.AGENT_EYE_RUNTIME_DIR;
+  if (runtimeDir) {
+    try {
+      const { createRequire } = await import("node:module");
+      const path = await import("node:path");
+      const req = createRequire(path.join(runtimeDir, "__agent_eye_resolve__.js"));
+      return req("playwright").chromium;
+    } catch {
+      /* fall through to plain resolution / the friendly error below */
+    }
+  }
   try {
     const pw = await import("playwright");
     return pw.chromium;
