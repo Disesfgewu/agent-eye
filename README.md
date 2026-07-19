@@ -14,6 +14,28 @@ just one.
 > (start dev server → open browser → snapshot → interact → read console → find bug)
 > is implemented and verified end-to-end.
 
+## Demo
+
+The agent drives a **real, visible browser** while you watch. A pulsing red dot
+is the agent's cursor; the 🔒 badge (top-left) shows your keyboard/mouse are
+locked out while it works; a status banner (bottom) narrates each step. Below: a
+full-stack demo app (Flutter web + Python/FastAPI + SQLite) driven entirely by
+Agent Eye — browse → add to cart → open detail → check out (writing a real row to
+SQLite).
+
+| Browsing the store | Add-to-cart (agent clicked "Add") |
+|---|---|
+| ![home](docs/screenshots/01-home.png) | ![popup](docs/screenshots/02-add-popup.png) |
+
+| Product detail (navigated) | Order confirmed → written to SQLite |
+|---|---|
+| ![detail](docs/screenshots/03-detail.png) | ![order](docs/screenshots/04-order-confirmed.png) |
+
+> Every screenshot is real output captured by Agent Eye's `browser_screenshot`
+> and saved to the activity timeline. To run the demo yourself: build the repo,
+> start the sample servers, then run `packages/mcp-server/live-demo.mjs`
+> (or double-click **`DEMO.cmd`** on Windows).
+
 ---
 
 ## Why
@@ -41,54 +63,147 @@ The extension does **not** call the agent; the agent (Claude Code, etc.) spawns
 the MCP server and calls its tools. The extension only makes setup one click and
 shows you what's happening.
 
-## Requirements
+## Installation
 
-- Node.js ≥ 20
-- A one-time browser download: `npx playwright install chromium`
-  (or set `agentEye.browserChannel` to `chrome`/`msedge` to use an installed browser)
+### Prerequisites
 
-## Install (packaged .vsix)
+| Requirement | Why |
+|---|---|
+| **Node.js ≥ 20** | Runs the MCP server (bundled inside the extension). Check with `node -v`. |
+| **VS Code ≥ 1.104** | The extension host. |
+| **An AI coding agent** | Claude Code, Cursor, or GitHub Copilot agent mode (any MCP-aware agent). |
+| **A Chromium browser** | Installed on first run (see step 3), or reuse system Chrome/Edge. |
+
+#### Install Node.js per OS
+
+<details><summary><b>Windows</b></summary>
+
+```powershell
+winget install OpenJS.NodeJS.LTS      # or download from https://nodejs.org
+node -v                               # expect v20+ 
+```
+Commands below work in **PowerShell** or **Git Bash**. Headed browser windows
+appear on your desktop as normal.
+</details>
+
+<details><summary><b>macOS</b></summary>
 
 ```bash
-# From the repo:
-npm install && npm run build
+brew install node                     # or download from https://nodejs.org
+node -v                               # expect v20+
+```
+On first headed launch, macOS may ask for Screen Recording / Accessibility
+permission for the terminal/VS Code — allow it so the browser window shows.
+</details>
+
+<details><summary><b>Linux</b></summary>
+
+```bash
+# Debian/Ubuntu (via nodesource) — or use nvm / your distro's package
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash - && sudo apt-get install -y nodejs
+node -v                               # expect v20+
+
+# Playwright's Chromium needs a few system libs on a fresh box:
+npx playwright install-deps chromium
+```
+A headed browser needs a display (X11/Wayland). On a headless server/CI, set
+`AGENT_EYE_HEADLESS=1` (screenshots still work; there's just no on-screen window).
+</details>
+
+### Option A — install the packaged `.vsix` (recommended)
+
+**Step 1 — build the `.vsix`** (from a clone of this repo):
+
+```bash
+git clone https://github.com/<you>/agent-eye.git
+cd agent-eye
+npm install            # installs workspace deps
+npm run build          # builds the extension + bundles the MCP server
 cd packages/vscode-extension
-npx @vscode/vsce package --no-dependencies   # produces agent-eye-0.1.0.vsix
+npx @vscode/vsce package --no-dependencies
+# → produces agent-eye-0.1.0.vsix (~120 KB)
+```
+
+**Step 2 — install it into VS Code** (either way):
+
+```bash
 code --install-extension agent-eye-0.1.0.vsix
 ```
 
-The `.vsix` bundles the MCP server but not Playwright (too large + native). On
-first run the extension prompts to install the browser runtime, or run **“Agent
-Eye: Install Browser Runtime (Playwright)”** from the Command Palette — it
-installs Playwright + Chromium into the extension's global storage, which the
-server finds via `NODE_PATH`.
+…or in VS Code: open the Command Palette (`Ctrl/Cmd+Shift+P`) → **“Extensions:
+Install from VSIX…”** → pick `agent-eye-0.1.0.vsix`. Then reload VS Code.
 
-## Getting started (development)
+**Step 3 — install the browser runtime (one time).** The `.vsix` bundles the MCP
+server but *not* Playwright (it's large + has native binaries). On first
+activation the extension pops a prompt — click **Install now** — or run **“Agent
+Eye: Install Browser Runtime (Playwright)”** from the Command Palette. It installs
+Playwright + Chromium into the extension's global storage; the server finds it via
+`NODE_PATH`. (Prefer your existing browser? Set `agentEye.browserChannel` to
+`chrome` or `msedge` and skip this.)
+
+**Step 4 — that's it: your agents are wired up automatically.** On first run the
+extension **auto-installs** the Agent Eye skill and registers the MCP server into
+your agents' global config, so you never place a file by hand:
+
+- **Claude Code** → skill to `~/.claude/skills/agent-eye/`, MCP server merged into
+  `~/.claude.json` (backed up first, existing entries preserved).
+- **Codex** → skill to `~/.codex/skills/agent-eye/` (if Codex is detected).
+- **GitHub Copilot (VS Code)** → MCP server registered live via the editor's
+  `McpServerDefinitionProvider` (no config file needed).
+
+Disable this with the `agentEye.autoInstall` setting; re-run it anytime with
+**“Agent Eye: Reinstall Agent Integrations”**.
+
+### Option B — from source, per-project (no `.vsix`)
+
+If you just want it in one project without installing the extension:
 
 ```bash
-npm install
-npm run build                 # builds both packages (incl. the bundled server)
-npx playwright install chromium
+npm install && npm run build
+npx playwright install chromium          # browser runtime
 ```
 
-### Use with Claude Code / Cursor
+Then run **“Agent Eye: Setup for Claude Code”** from VS Code (writes a project
+`.mcp.json` + installs the skill into `.claude/skills/`), **or** create
+`.mcp.json` yourself:
 
-1. In VS Code, run **“Agent Eye: Setup for Claude Code (write .mcp.json)”** from the
-   Command Palette. This writes a `.mcp.json` pointing at the built server and adds
-   the artifact dirs to `.gitignore`.
-2. Restart Claude Code (or reload its MCP servers). The `agent-eye` tools appear.
-3. Ask your agent to, e.g., *“start the dev server, open it in the browser, and
-   check the console for errors.”*
-4. Open the **Agent Eye** sidebar (the eye icon) to watch screenshots, logs, and
-   approvals in real time.
+```json
+{
+  "mcpServers": {
+    "agent-eye": {
+      "command": "node",
+      "args": ["<abs-path>/packages/mcp-server/dist/index.js", "--workspace", "<abs-path-to-your-project>"],
+      "env": { "AGENT_EYE_SHOW_CURSOR": "1" }
+    }
+  }
+}
+```
 
-### Use with VS Code Copilot agent mode
+## Using it
 
-No `.mcp.json` needed — the extension registers the server through VS Code's
-`McpServerDefinitionProvider` API automatically. Just build, install the
-extension, and the tools are available to Copilot.
+Once installed, just ask your agent to do frontend work — the skill makes it use
+the visible browser automatically:
 
-## Tools
+> *“Start the dev server, open the app, click through the signup flow, and fix
+> whatever's broken.”*
+
+A browser window opens on your screen; a red cursor moves, clicks, and types while
+a 🔒 badge shows your keyboard/mouse are locked out (the agent is driving). The
+agent reads the console/network to find real bugs, fixes the code, reloads, and
+re-verifies — then closes the window when done.
+
+- **Claude Code / Cursor** — after Option A (or `Setup for Claude Code`), restart
+  the agent / reload its MCP servers so the `agent-eye` tools appear.
+- **VS Code Copilot agent mode** — nothing to configure; the tools are registered
+  automatically.
+- Open the **Agent Eye** sidebar (the eye icon) to watch screenshots, logs, and
+  the action timeline live.
+
+## Publishing to a Marketplace
+
+Want to distribute Agent Eye so others install it with one click? See
+**[PUBLISHING.md](PUBLISHING.md)** for the full step-by-step (VS Code Marketplace
+via `vsce`, and Open VSX for Cursor/VSCodium via `ovsx`).
 
 ## Works with any frontend
 
@@ -145,6 +260,7 @@ there yourself (project) / to `~/.claude/skills/` (all projects).
 | `browser_get_console_logs(limit?)` | observe | Console messages + uncaught errors. |
 | `browser_get_network_requests(limit?)` | observe | Requests with **sensitive headers redacted**. |
 | `browser_show_status(message)` | interact | Live narration banner in the window so the watching user can follow the agent's work. |
+| `browser_close()` | — | Close the window when done (also auto-closes after idle; server stays alive & relaunches lazily). |
 | `browser_evaluate(expression)` | highRisk | Arbitrary JS — **disabled by default**. |
 | `start_dev_server(id, command, args?, cwd?)` | execute / highRisk | Spawn an allowlisted command, cwd confined to the workspace. |
 | `get_dev_server_logs(id, limit?)` | observe | stdout/stderr + status. |
@@ -171,8 +287,9 @@ detail in [`plan.v1.md` §7](plan.v1.md).
   cwd confined to the workspace, executables allowlisted.
 - **Dedicated browser profile** (`.agent-eye/browser-profile/`) — never your real
   one, so the agent never inherits your logins or saved passwords.
-- **Human-in-the-loop**: `ask`-tier actions request approval via MCP elicitation;
-  clients without it fail safe (deny).
+- **Input lock**: while the agent drives a headed window, your real mouse/keyboard
+  are blocked (transparent overlay + key trap, with a 🔒 badge) so you can't
+  collide with it; the agent lifts the lock only for its own dispatched action.
 - **Prompt-injection framing**: all page-derived content is wrapped as untrusted
   data. The real guarantee is the policy, not the framing.
 - **Secret hygiene**: `Authorization`/`Cookie`/token-like values redacted from
@@ -189,7 +306,25 @@ detail in [`plan.v1.md` §7](plan.v1.md).
 | `AGENT_EYE_HEADLESS=1` | — | Run headless (CI / remote). Headed is the default. |
 | `AGENT_EYE_SHOW_CURSOR` | `agentEye.showCursor` | Pulsing cursor overlay so you can watch where the agent points/clicks (Playwright doesn't move the real OS pointer). On by default. |
 | `AGENT_EYE_SLOWMO` | `agentEye.slowMoMs` | Slow each action by N ms so you can follow along (e.g. 300–800). |
+| `AGENT_EYE_INPUT_LOCK` | — | Lock the user's mouse/keyboard while the agent drives (default on when headed; `0` disables). |
+| `AGENT_EYE_DEVICE_SCALE` | — | Render scale factor (default `2`) — keeps canvas UIs crisp on HiDPI displays. |
+| `AGENT_EYE_IDLE_CLOSE_MS` | — | Auto-close the window after this many ms idle (default `180000`; `0` disables). |
+| `AGENT_EYE_BROWSER_CHANNEL` | `agentEye.browserChannel` | (also above) `chrome`/`msedge` to reuse an installed browser. |
 | `AGENT_EYE_LOG_LEVEL` | `agentEye.logLevel` | `debug`/`info`/`warn`/`error`. |
+| — | `agentEye.autoInstall` | Auto-install the skill + MCP into agents' global config on first run (default on). |
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| **Tools don't appear** in Claude Code | Restart Claude Code or reload its MCP servers so it re-reads `.mcp.json` / global config. |
+| **"Playwright is not installed"** | Run **“Agent Eye: Install Browser Runtime”**, or `npx playwright install chromium` (Linux may also need `npx playwright install-deps chromium`). |
+| **Browser opens but the page is blank** | For a compiled frontend, a stale service-worker/build cache can serve the old app — hard-reload / clear cache / do a clean rebuild. Flutter *debug* (`flutter run -d web-server`) can stall on a second browser; prefer `flutter build web --release` + a static server. |
+| **UI looks blurry** on a HiDPI/scaled display | It renders at 2x by default; adjust with `AGENT_EYE_DEVICE_SCALE`. |
+| **"Another Agent Eye instance owns the browser"** | Another session (per workspace) holds it — close that session/MCP client, then retry. |
+| **A dev-server start is refused by policy** | The category is set to `deny` in `.agent-eye/policy.json`, or the command isn't allowlisted — add it to `commandAllowlist`. |
+| **No visible window when *you* run a demo from a script** | The window appears in whatever OS session launched the server. Your agent spawns it in your session (so it shows); a background/sandboxed shell may render off-screen. On Windows, launch the demo from a normal terminal (see `DEMO.cmd`). |
+| **The window lingers after a task** | It auto-closes after `AGENT_EYE_IDLE_CLOSE_MS` (default 3 min); the agent can also call `browser_close`. |
 
 ## Development
 
