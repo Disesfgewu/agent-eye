@@ -144,6 +144,9 @@ class AgentEye:
             channel=self.channel,
             slow_mo=self.slow_mo,
             viewport={"width": 1280, "height": 800},
+            # Render at 2x so canvas UIs (Flutter web) are crisp on HiDPI /
+            # scaled displays. Logical coords stay 1280x800; screenshots use css.
+            device_scale_factor=int(os.environ.get("AGENT_EYE_DEVICE_SCALE") or 2),
             args=[
                 "--no-first-run",
                 "--no-default-browser-check",
@@ -244,7 +247,7 @@ class AgentEye:
     def screenshot(self, full_page: bool = False, save_path: Optional[str] = None) -> bytes:
         self.gate.check("observe", "Take screenshot")
         page = self._ensure_page()
-        data = page.screenshot(full_page=full_page, type="png")
+        data = page.screenshot(full_page=full_page, type="png", scale="css")
         if save_path:
             with open(save_path, "wb") as f:
                 f.write(data)

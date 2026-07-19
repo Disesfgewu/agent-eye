@@ -190,6 +190,10 @@ export class BrowserManager {
         slowMo: this.slowMo,
         channel: this.channel,
         viewport: { width: 1280, height: 800 },
+        // Render at 2x so the app is crisp on HiDPI / scaled displays (default
+        // dSF=1 makes canvas-rendered Flutter look blurry when the OS upscales
+        // the window). Logical coords stay 1280x800; screenshots use scale:css.
+        deviceScaleFactor: Number(process.env.AGENT_EYE_DEVICE_SCALE) || 2,
         // Harden the profile: no password manager, autofill, or account sync,
         // so the agent never gains access to saved credentials (plan 7.2).
         args: [
@@ -421,7 +425,9 @@ export class BrowserManager {
 
   async screenshot(fullPage: boolean): Promise<Buffer> {
     const page = await this.ensurePage();
-    return await page.screenshot({ fullPage, type: "png" });
+    // scale:"css" keeps the screenshot at logical 1280x800 regardless of the
+    // 2x deviceScaleFactor, so coordinates read off it match browser_click_at.
+    return await page.screenshot({ fullPage, type: "png", scale: "css" });
   }
 
   /** Arbitrary JS execution — only reachable when policy permits highRisk. */
