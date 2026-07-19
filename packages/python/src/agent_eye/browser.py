@@ -41,6 +41,31 @@ _CURSOR_SCRIPT = r"""(() => {
 })()"""
 
 
+_STATUS_SCRIPT = r"""(() => {
+  if (window.__agentEyeStatusInstalled) return;
+  window.__agentEyeStatusInstalled = true;
+  let hideTimer;
+  const ensure = () => {
+    let el = document.getElementById('__agent_eye_status');
+    if (el) return el;
+    if (!document.body) return null;
+    el = document.createElement('div');
+    el.id = '__agent_eye_status';
+    el.style.cssText = 'position:fixed;z-index:2147483647;top:12px;left:50%;transform:translateX(-50%);max-width:80vw;padding:8px 18px;border-radius:999px;background:rgba(15,23,42,.92);color:#fff;font:600 13px/1.4 system-ui,sans-serif;box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none;opacity:0;transition:opacity .18s ease';
+    document.body.appendChild(el);
+    return el;
+  };
+  window.__agentEyeSetStatus = (text) => {
+    const el = ensure();
+    if (!el) return;
+    el.textContent = String(text);
+    el.style.opacity = '1';
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => { el.style.opacity = '0'; }, 5000);
+  };
+})()"""
+
+
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
@@ -129,6 +154,7 @@ class AgentEye:
         )
         if self.show_cursor:
             self._context.add_init_script(_CURSOR_SCRIPT)
+            self._context.add_init_script(_STATUS_SCRIPT)
         pages = self._context.pages
         self._page = pages[0] if pages else self._context.new_page()
         self._attach(self._page)
@@ -242,6 +268,19 @@ class AgentEye:
                 "responseHeaders": guards.redact_headers(e.get("responseHeaders", {}), redact),
             })
         return out
+
+    def show_status(self, message: str) -> None:
+        """Show a live status banner in the page narrating what the agent is
+        doing right now (no-op if watch-along is off or no page is open)."""
+        if not self.show_cursor or self._page is None:
+            return
+        try:
+            import json as _json
+            self._page.evaluate(
+                f"window.__agentEyeSetStatus && window.__agentEyeSetStatus({_json.dumps(message)})"
+            )
+        except Exception:
+            pass
 
     def evaluate(self, expression: str):
         self.gate.check("highRisk", "Evaluate JavaScript in page", expression[:200])

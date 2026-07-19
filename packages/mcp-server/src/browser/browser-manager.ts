@@ -82,6 +82,43 @@ const CURSOR_SCRIPT = `(() => {
   install();
 })()`;
 
+/** Live status banner: shows what the agent is doing right now, so the user can
+ * follow the work as it happens (Antigravity-style narration). Exposes
+ * window.__agentEyeSetStatus(text); auto-fades after a few seconds. */
+const STATUS_SCRIPT = `(() => {
+  if (window.__agentEyeStatusInstalled) return;
+  window.__agentEyeStatusInstalled = true;
+  let hideTimer;
+  const ensure = () => {
+    let el = document.getElementById('__agent_eye_status');
+    if (el) return el;
+    if (!document.body) return null;
+    el = document.createElement('div');
+    el.id = '__agent_eye_status';
+    el.style.cssText =
+      'position:fixed;z-index:2147483647;top:12px;left:50%;transform:translateX(-50%);' +
+      'max-width:80vw;padding:8px 18px;border-radius:999px;background:rgba(15,23,42,.92);' +
+      'color:#fff;font:600 13px/1.4 system-ui,sans-serif;letter-spacing:.2px;' +
+      'box-shadow:0 4px 18px rgba(0,0,0,.35);pointer-events:none;display:flex;gap:8px;align-items:center;' +
+      'opacity:0;transition:opacity .18s ease';
+    el.innerHTML = '<span style="width:8px;height:8px;border-radius:50%;background:#f43f5e;flex:none;animation:aeStatusPulse 1.2s infinite"></span><span id="__agent_eye_status_text"></span>';
+    const style = document.createElement('style');
+    style.textContent = '@keyframes aeStatusPulse{0%,100%{opacity:1}50%{opacity:.35}}';
+    document.head.appendChild(style);
+    document.body.appendChild(el);
+    return el;
+  };
+  window.__agentEyeSetStatus = (text) => {
+    const el = ensure();
+    if (!el) return;
+    const t = document.getElementById('__agent_eye_status_text');
+    if (t) t.textContent = String(text);
+    el.style.opacity = '1';
+    clearTimeout(hideTimer);
+    hideTimer = setTimeout(() => { el.style.opacity = '0'; }, 5000);
+  };
+})()`;
+
 export class BrowserManager {
   private context: BrowserContext | undefined;
   private page: Page | undefined;
@@ -127,12 +164,32 @@ export class BrowserManager {
     const context = this.context;
     if (this.showCursor) {
       await context.addInitScript(CURSOR_SCRIPT);
+      await context.addInitScript(STATUS_SCRIPT);
     }
 
     const pages = context.pages();
     this.page = pages.length > 0 ? pages[0] : await context.newPage();
     this.attachListeners(this.page);
     return this.page;
+  }
+
+  /**
+   * Shows a live status banner in the page describing what the agent is doing
+   * right now. Best-effort: no-op when watch-along is off or no page is open
+   * (never force-launches the browser just to narrate).
+   */
+  async setStatus(text: string): Promise<void> {
+    if (!this.showCursor) return;
+    const page = this.page;
+    if (!page || page.isClosed()) return;
+    try {
+      // String-form evaluate: runs in the page, avoids needing DOM types here.
+      await page.evaluate(
+        `window.__agentEyeSetStatus && window.__agentEyeSetStatus(${JSON.stringify(text)})`
+      );
+    } catch {
+      /* narration must never break the real action */
+    }
   }
 
   /** Animate the (real) mouse to an element's centre so the visible cursor

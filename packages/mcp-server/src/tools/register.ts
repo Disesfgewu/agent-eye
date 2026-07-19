@@ -94,6 +94,7 @@ export function registerTools(ctx: ToolContext): void {
 
       try {
         const { url: finalUrl, title } = await browser.navigate(url);
+        void browser.setStatus(`Agent Eye｜opened ${title || finalUrl}`);
         artifacts.record({ type: "tool_call", tool: "browser_navigate", title: `Navigated to ${title || finalUrl}`, detail: finalUrl, status: "ok" });
         return text(`Navigated to ${finalUrl}\nPage title: ${title}`);
       } catch (err) {
@@ -150,6 +151,7 @@ export function registerTools(ctx: ToolContext): void {
       const gateResult = await gate.check("interact", { tool: "browser_click", title: `Click ${target}`, detail: "" });
       if (!gateResult.ok) return errorResult(gateResult.message);
       try {
+        await browser.setStatus(`Agent Eye｜clicking ${target}`);
         await browser.click(target);
         artifacts.record({ type: "tool_call", tool: "browser_click", title: `Clicked ${target}`, status: "ok" });
         return text(`Clicked ${target}.`);
@@ -177,6 +179,7 @@ export function registerTools(ctx: ToolContext): void {
       const gateResult = await gate.check("interact", { tool: "browser_click_at", title: `Click at (${x}, ${y})`, detail: "" });
       if (!gateResult.ok) return errorResult(gateResult.message);
       try {
+        await browser.setStatus(`Agent Eye｜clicking at (${x}, ${y})`);
         await browser.clickAt(x, y);
         artifacts.record({ type: "tool_call", tool: "browser_click_at", title: `Clicked at (${x}, ${y})`, status: "ok" });
         return text(`Clicked at (${x}, ${y}).`);
@@ -210,6 +213,7 @@ export function registerTools(ctx: ToolContext): void {
       });
       if (!gateResult.ok) return errorResult(gateResult.message);
       try {
+        await browser.setStatus(`Agent Eye｜typing into ${target}`);
         await browser.type(target, value, willSubmit);
         artifacts.record({ type: "tool_call", tool: "browser_type", title: `Typed into ${target}${willSubmit ? " + submit" : ""}`, status: "ok" });
         return text(`Typed into ${target}${willSubmit ? " and pressed Enter." : "."}`);
@@ -335,6 +339,28 @@ export function registerTools(ctx: ToolContext): void {
       } catch (err) {
         return toolError("browser_evaluate", "Evaluation failed", err, artifacts);
       }
+    }
+  );
+
+  // ---- browser_show_status (live narration for the watching user) ----------
+  server.registerTool(
+    "browser_show_status",
+    {
+      title: "Show status to the user",
+      description:
+        "Show a short status message as a banner in the browser window, narrating what you are doing RIGHT NOW so the watching user can follow your work (e.g. 'Reproducing the bug…', 'Fixed main.dart — reloading to verify…'). Use before/after significant steps while modifying or debugging. Requires a page to be open.",
+      inputSchema: {
+        message: z.string().max(200).describe("Short status text shown to the user (auto-fades after ~5s)."),
+      },
+    },
+    async ({ message }): Promise<ToolResult> => {
+      const blocked = requireGlobals();
+      if (blocked) return blocked;
+      const gateResult = await gate.check("interact", { tool: "browser_show_status", title: "Show status banner", detail: message });
+      if (!gateResult.ok) return errorResult(gateResult.message);
+      await browser.setStatus(message);
+      artifacts.record({ type: "info", tool: "browser_show_status", title: message, status: "ok" });
+      return text("Status shown.");
     }
   );
 

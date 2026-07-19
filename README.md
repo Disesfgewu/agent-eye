@@ -144,6 +144,7 @@ there yourself (project) / to `~/.claude/skills/` (all projects).
 | `browser_screenshot(fullPage?)` | observe | PNG saved to the timeline and returned. |
 | `browser_get_console_logs(limit?)` | observe | Console messages + uncaught errors. |
 | `browser_get_network_requests(limit?)` | observe | Requests with **sensitive headers redacted**. |
+| `browser_show_status(message)` | interact | Live narration banner in the window so the watching user can follow the agent's work. |
 | `browser_evaluate(expression)` | highRisk | Arbitrary JS — **disabled by default**. |
 | `start_dev_server(id, command, args?, cwd?)` | execute / highRisk | Spawn an allowlisted command, cwd confined to the workspace. |
 | `get_dev_server_logs(id, limit?)` | observe | stdout/stderr + status. |

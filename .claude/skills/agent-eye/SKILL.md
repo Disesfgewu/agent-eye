@@ -1,6 +1,6 @@
 ---
 name: agent-eye
-description: MANDATORY for any frontend task — building, changing, testing, or debugging web UI (React, Vue, Svelte, Angular, Next/Nuxt, plain HTML/CSS/JS, Flutter web, any browser-rendered app). Drives a VISIBLE browser window through the Agent Eye MCP tools (browser_*, *_dev_server) so the user can watch every step - start the dev server, open the page, see it via snapshot/screenshot, click and type like a real user, read console/network to find real bugs, fix, re-verify in the browser, then demo the working flow. Trigger whenever the user asks to build/adjust/fix a frontend feature, reports a UI problem ("XX 按鈕沒有作用", "OOO 功能失敗", "頁面壞了", "button doesn't work", "page is blank"), wants "我希望...的部分可以是..." style UI changes, or asks for a demo/verification of frontend behavior.
+description: MANDATORY for any frontend task — building, changing, testing, or debugging web UI (React, Vue, Svelte, Angular, Next/Nuxt, plain HTML/CSS/JS, Flutter web, any browser-rendered app). Drives a VISIBLE browser window through the Agent Eye MCP tools (browser_*, *_dev_server) that stays open WHILE you modify code, so the user watches the whole process live — open the window before editing, narrate steps with browser_show_status, reproduce the bug on screen, fix, reload in the same window, re-verify, then demo. Read console/network to find real bugs. Trigger whenever the user asks to build/adjust/fix a frontend feature, reports a UI problem ("XX 按鈕沒有作用", "OOO 功能失敗", "頁面壞了", "button doesn't work", "page is blank"), wants "我希望...的部分可以是..." style UI changes, or asks for a demo/verification of frontend behavior.
 ---
 
 # Agent Eye — see and drive the real frontend
@@ -13,10 +13,31 @@ or a broken API call. If the work touches anything a browser renders, you MUST
 verify it by operating the real UI — and the user is watching the window, so
 every verification is also a live demo.
 
+## Work LIVE in the window — not just a final demo
+
+The browser window is the user's live view of your work **while you modify and
+fix code**, not a stage for a finished result. Antigravity-style rules:
+
+1. **Open the window FIRST.** At the start of any frontend task, before editing
+   any code: start the dev server and `browser_navigate` to the app. From that
+   moment the user is watching.
+2. **Keep the same window open for the whole session.** Never close or relaunch
+   the browser between edits; it is the continuity of the live view.
+3. **Narrate as you go.** Before each significant step, call
+   `browser_show_status("...")` so the user can follow: "重現 bug 中…",
+   "找到了：console 顯示 X is not a function", "已修正 main.dart，重新載入驗證…".
+4. **Iterate visibly, in small steps.** After EVERY code change: reload
+   (`browser_navigate` again — or restart the dev server if no hot reload),
+   re-run the affected flow in front of the user, check console/network.
+   Never batch several invisible edits and only show the end state.
+5. Reproduce the bug in the window BEFORE fixing it (user sees the broken
+   behavior), and re-run the exact same steps AFTER the fix (user sees it work).
+
 ## Tools
 
 | Tool | Use for |
 |---|---|
+| `browser_show_status(message)` | Live narration banner in the window — tell the watching user what you're doing right now |
 | `start_dev_server(id, command, args?, cwd?)` | Launch frontend/backend dev servers (allowlisted commands, cwd inside workspace) |
 | `get_dev_server_logs(id, limit?)` | Poll startup output ("listening", "serving", errors) |
 | `stop_dev_server(id)` | Tear down a server you started |
