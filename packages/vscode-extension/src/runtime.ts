@@ -32,7 +32,12 @@ export function installRuntime(context: vscode.ExtensionContext): void {
   }
   const terminal = vscode.window.createTerminal({ name: "Agent Eye Runtime", cwd: dir });
   terminal.show();
-  terminal.sendText(`npm install playwright@${PLAYWRIGHT_VERSION} && npx playwright install chromium`);
+  // Two separate lines instead of `&&`: Windows PowerShell (VS Code's default
+  // terminal) rejects `&&`. An interactive shell runs these sequentially — the
+  // second line waits in the buffer until the first command returns. Works in
+  // PowerShell, pwsh, cmd, bash, and zsh.
+  terminal.sendText(`npm install playwright@${PLAYWRIGHT_VERSION}`);
+  terminal.sendText("npx playwright install chromium");
 }
 
 /** On first run, offers to install the browser runtime if it's missing. */
