@@ -44,14 +44,39 @@ export async function setupForClaudeCode(context: vscode.ExtensionContext): Prom
   }
 
   ensureGitignore(workspaceRoot);
+  const skillNote = installSkill(context, workspaceRoot);
 
   const choice = await vscode.window.showInformationMessage(
-    "Agent Eye: wrote .mcp.json. Restart Claude Code (or reload its MCP servers) to pick up the `agent-eye` tools.",
+    `Agent Eye: wrote .mcp.json${skillNote}. Restart Claude Code (or reload its MCP servers) to pick up the \`agent-eye\` tools.`,
     "Open .mcp.json"
   );
   if (choice === "Open .mcp.json") {
     const doc = await vscode.workspace.openTextDocument(mcpJsonPath);
     await vscode.window.showTextDocument(doc);
+  }
+}
+
+/**
+ * Installs the Agent Eye skill into the workspace's .claude/skills/ so agents
+ * automatically use the browser tools for all frontend work. Creates the file
+ * if missing; never overwrites an existing (possibly user-edited) skill.
+ * Returns a fragment for the completion message.
+ */
+function installSkill(context: vscode.ExtensionContext, workspaceRoot: string): string {
+  const candidates = [
+    path.join(context.extensionPath, "dist", "skill", "SKILL.md"),
+    path.join(context.extensionPath, "..", "..", "skills", "agent-eye", "SKILL.md"),
+  ];
+  const source = candidates.find((p) => fs.existsSync(p));
+  if (!source) return "";
+  const target = path.join(workspaceRoot, ".claude", "skills", "agent-eye", "SKILL.md");
+  try {
+    if (fs.existsSync(target)) return " (skill already installed)";
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.copyFileSync(source, target);
+    return " + installed the agent-eye skill (.claude/skills/agent-eye)";
+  } catch {
+    return "";
   }
 }
 

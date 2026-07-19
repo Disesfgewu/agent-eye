@@ -1,4 +1,5 @@
 import { build } from "esbuild";
+import { mkdirSync, copyFileSync } from "node:fs";
 
 const production = process.argv.includes("--production");
 
@@ -35,3 +36,9 @@ await build({
   minify: production,
   logLevel: "info",
 });
+
+// 3) The Agent Eye skill, shipped so the Setup command can install it into the
+//    workspace's .claude/skills/ (agents then auto-use the browser tools for
+//    all frontend work).
+mkdirSync("dist/skill", { recursive: true });
+copyFileSync("../../skills/agent-eye/SKILL.md", "dist/skill/SKILL.md");

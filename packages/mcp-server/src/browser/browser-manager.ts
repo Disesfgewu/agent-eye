@@ -202,6 +202,9 @@ export class BrowserManager {
 
   async navigate(url: string): Promise<{ url: string; title: string }> {
     const page = await this.ensurePage();
+    // Surface the window so the user actually sees the session start (headed
+    // mode exists precisely to be watched).
+    await page.bringToFront().catch(() => undefined);
     await page.goto(url, { waitUntil: "domcontentloaded" });
     if (this.showCursor) {
       // Nudge the mouse so the overlay cursor appears immediately, and glide it

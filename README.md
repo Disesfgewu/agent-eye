@@ -122,6 +122,16 @@ default):
 > instead of snapshot-first. Add any extra dev commands to `commandAllowlist` in
 > `.agent-eye/policy.json`.
 
+## Agent Skill: make every agent use it automatically
+
+[`skills/agent-eye/SKILL.md`](skills/agent-eye/SKILL.md) is an Agent Skill that
+makes AI agents treat browser verification as **mandatory for all frontend
+work**: run the dev server, open the visible window, operate the real UI, read
+console/network, fix, re-verify, and demo to the user. The VS Code command
+**"Agent Eye: Setup for Claude Code"** installs it into the workspace's
+`.claude/skills/agent-eye/` automatically (alongside `.mcp.json`); or copy it
+there yourself (project) / to `~/.claude/skills/` (all projects).
+
 ## Tools
 
 | Tool | Action category | Purpose |
