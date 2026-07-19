@@ -134,7 +134,7 @@ A headed browser needs a display (X11/Wayland). On a headless server/CI, set
 **Step 1 — build the `.vsix`** (from a clone of this repo):
 
 ```bash
-git clone https://github.com/<you>/agent-eye.git
+git clone https://github.com/Disesfgewu/agent-eye.git
 cd agent-eye
 npm install            # installs workspace deps
 npm run build          # builds the extension + bundles the MCP server

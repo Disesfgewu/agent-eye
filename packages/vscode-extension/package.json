@@ -11,7 +11,7 @@
   },
   "categories": ["AI", "Other"],
   "icon": "media/icon.png",
-  "repository": { "type": "git", "url": "https://github.com/agent-eye/agent-eye" },
+  "repository": { "type": "git", "url": "https://github.com/Disesfgewu/agent-eye" },
   "main": "./dist/extension.js",
   "activationEvents": [
     "onStartupFinished"

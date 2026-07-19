@@ -8,7 +8,7 @@ server.
 ## Install
 
 ```bash
-pip install "git+https://github.com/agent-eye/agent-eye.git#subdirectory=packages/python"
+pip install "git+https://github.com/Disesfgewu/agent-eye.git#subdirectory=packages/python"
 # or, from a clone:
 pip install -e packages/python
 python -m playwright install chromium   # or pass channel="chrome" to reuse system Chrome

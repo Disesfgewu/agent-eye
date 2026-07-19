@@ -23,7 +23,7 @@ mcp = ["mcp>=1.0"]
 agent-eye-mcp = "agent_eye.mcp_server:main"
 
 [project.urls]
-Homepage = "https://github.com/agent-eye/agent-eye"
+Homepage = "https://github.com/Disesfgewu/agent-eye"
 
 [tool.setuptools.packages.find]
 where = ["src"]
