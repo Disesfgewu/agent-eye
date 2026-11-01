@@ -349,8 +349,7 @@ detail in [`plan.v1.md` §7](plan.v1.md).
   data. The real guarantee is the policy, not the framing.
 - **Secret hygiene**: `Authorization`/`Cookie`/token-like values redacted from
   network artifacts; `.agent-artifacts/` and `.agent-eye/` are gitignored.
-- **Single-instance lock**: the first server owns the browser/dev servers per
-  workspace; a second instance reports it cleanly instead of crashing.
+- **Per-instance isolation**: every server instance runs its own browser profile and process set (tracked and reaped on exit), so multiple sessions coexist without locking each other out.
 
 ### Configuration knobs
 
@@ -378,7 +377,6 @@ detail in [`plan.v1.md` §7](plan.v1.md).
 | **"Playwright is not installed"** | Run **“Agent Eye: Install Browser Runtime”**, or `npx playwright install chromium` (Linux may also need `npx playwright install-deps chromium`). |
 | **Browser opens but the page is blank** | For a compiled frontend, a stale service-worker/build cache can serve the old app — hard-reload / clear cache / do a clean rebuild. Flutter *debug* (`flutter run -d web-server`) can stall on a second browser; prefer `flutter build web --release` + a static server. |
 | **UI looks blurry** on a HiDPI/scaled display | It renders at 2x by default; adjust with `AGENT_EYE_DEVICE_SCALE`. |
-| **"Another Agent Eye instance owns the browser"** | Another session (per workspace) holds it — close that session/MCP client, then retry. |
 | **A dev-server start is refused by policy** | The category is set to `deny` in `.agent-eye/policy.json`, or the command isn't allowlisted — add it to `commandAllowlist`. |
 | **No visible window when *you* run a demo from a script** | The window appears in whatever OS session launched the server. Your agent spawns it in your session (so it shows); a background/sandboxed shell may render off-screen. On Windows, launch the demo from a normal terminal (see `DEMO.cmd`). |
 | **The window lingers after a task** | It auto-closes after `AGENT_EYE_IDLE_CLOSE_MS` (default 3 min); the agent can also call `browser_close`. |

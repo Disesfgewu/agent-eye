@@ -20,7 +20,6 @@ export function registerActionTools(ctx: ToolContext): void {
     category: "observe" | "interact" | "sideEffect",
     title: string
   ): Promise<ReturnType<typeof errorResult> | null> => {
-    if (!ctx.ownsGlobals) return errorResult("Another Agent Eye instance owns the browser for this workspace.");
     const g = await gate.check(category, { tool, title, detail: "" });
     return g.ok ? null : errorResult(g.message);
   };
