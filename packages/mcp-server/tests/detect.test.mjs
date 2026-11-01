@@ -27,7 +27,9 @@ for (const c of cases) {
 
 test("every suggested command is accepted by the command guard under the default policy", () => {
   for (const c of cases) {
-    for (const platform of ["linux", "win32"]) {
+    // Windows-style suggestions (`..\mvnw`, `python`) are only classified on a Windows host: on POSIX a backslash
+    // is not a path separator, and detection never produces them there (it keys off process.platform).
+    for (const platform of process.platform === "win32" ? ["win32"] : ["linux"]) {
       for (const p of detectProjects(c.files, { platform }).projects) {
         const v = classifyCommand(p.command, p.args, p.dir, ws, DEFAULT_POLICY.commandAllowlist);
         assert.equal(v.verdict, "allowlisted", `${c.name} (${platform}): ${p.command} ${p.args.join(" ")} in ${p.dir} -> ${v.reason ?? v.verdict}`);
