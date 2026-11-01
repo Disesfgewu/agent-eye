@@ -81,3 +81,24 @@ jobs:
         env:
           AGENT_EYE_REQUIRE_TOOLCHAINS: go,cargo,python
         run: node e2e-toolchains.mjs
+
+  python-tests:
+    name: python (${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: pip install playwright
+      - run: python -m playwright install --with-deps chromium
+      - name: Conformance + dev-server + real-browser smoke tests
+        working-directory: packages/python
+        env:
+          PYTHONPATH: src
+          AGENT_EYE_REQUIRE_PLAYWRIGHT: "1"
+        run: python -m unittest discover -s tests -v

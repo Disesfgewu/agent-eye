@@ -34,6 +34,9 @@ DEFAULT_CMD_ALLOWLIST = [
     "react-scripts", "vue-cli-service", "turbo",
     "flutter", "dart",
     "python", "python3", "py", "uvicorn", "flask", "django-admin", "manage.py",
+    # Go / Rust / .NET / JVM / Elixir (subcommands and flags are restricted by toolchains.py)
+    "go", "air", "templ", "wails", "cargo", "trunk", "dx", "dotnet",
+    "mvn", "mvnw", "gradle", "gradlew", "mix",
     "php", "ruby", "bundle", "rails", "jekyll", "hugo",
     "http-server", "serve", "live-server", "static-server", "wrangler",
 ]

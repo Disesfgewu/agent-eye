@@ -34,7 +34,8 @@ class DevServerManager:
         existing = self._servers.get(sid)
         if existing and existing.status == "running":
             return True  # already running
-        env = {**os.environ, "FORCE_COLOR": "0", "BROWSER": "none"}
+        # PYTHONUNBUFFERED: Python dev servers otherwise buffer stdout when piped, hiding "listening on ..." lines.
+        env = {**os.environ, "FORCE_COLOR": "0", "BROWSER": "none", "PYTHONUNBUFFERED": "1"}
         if IS_WINDOWS:
             line = subprocess.list2cmdline([command, *args])
             proc = subprocess.Popen(

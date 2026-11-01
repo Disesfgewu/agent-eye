@@ -15,6 +15,14 @@ test("the version reported to MCP clients matches every package.json (no drift)"
   assert.equal(ext, server);
 });
 
+test("the Python package reports the same version (pyproject + __version__)", () => {
+  const server = read("../package.json").version;
+  const pyproject = fs.readFileSync(fileURLToPath(new URL("../../python/pyproject.toml", import.meta.url)), "utf8");
+  const init = fs.readFileSync(fileURLToPath(new URL("../../python/src/agent_eye/__init__.py", import.meta.url)), "utf8");
+  assert.equal(/^version = "([^"]+)"/m.exec(pyproject)?.[1], server);
+  assert.equal(/^__version__ = "([^"]+)"/m.exec(init)?.[1], server);
+});
+
 test("SKILL.md frontmatter description stays short (it is loaded into every conversation)", () => {
   const skill = fs.readFileSync(fileURLToPath(new URL("../../../skills/agent-eye/SKILL.md", import.meta.url)), "utf8");
   const desc = /^description: (.*)$/m.exec(skill)?.[1] ?? "";

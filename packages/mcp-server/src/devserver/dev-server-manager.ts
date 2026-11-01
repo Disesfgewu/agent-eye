@@ -128,7 +128,8 @@ const isWindows = process.platform === "win32";
  * has already rejected shell metacharacters in the command and args.
  */
 function spawnProcess(command: string, args: string[], cwd: string): ChildProcess {
-  const env = { ...process.env, FORCE_COLOR: "0", BROWSER: "none" };
+  // PYTHONUNBUFFERED: Python dev servers otherwise buffer stdout when piped, hiding "listening on ..." lines.
+  const env = { ...process.env, FORCE_COLOR: "0", BROWSER: "none", PYTHONUNBUFFERED: "1" };
   if (!isWindows) {
     return spawn(command, args, { cwd, env, shell: false });
   }
