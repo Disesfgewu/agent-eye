@@ -295,6 +295,10 @@ there yourself (project) / to `~/.claude/skills/` (all projects).
 | `browser_batch(steps, report?)` | per step | Up to 20 steps (navigate/click/type/press/select/hover/wait) in one call + health summary. **Every step is permission-checked before any runs**; stops at first failure. |
 | `usage_report()` | observe | Estimated token cost of this session's tool calls, per tool (see [Token usage](#token-usage)). |
 
+## How this compares
+
+See [`docs/ECOSYSTEM.md`](docs/ECOSYSTEM.md) for a sourced comparison with Playwright MCP/CLI, Chrome DevTools MCP, agent-browser, Browser Use and Stagehand — what each is best at, their token-saving techniques, and where Agent Eye has gaps. A weekly workflow tracks new upstream releases.
+
 ## Token usage
 
 Agent Eye records an **estimate** of the tokens each tool call adds to the agent's context, so you can see

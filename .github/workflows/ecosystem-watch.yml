@@ -1,0 +1,32 @@
+name: ecosystem-watch
+
+# Weekly check of upstream browser-tool projects (see docs/ECOSYSTEM.md).
+# Maintains one rolling issue labelled "ecosystem"; commits nothing.
+on:
+  schedule:
+    - cron: "0 3 * * 1" # Mondays 03:00 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print changes without touching issues"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Check upstream releases
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node scripts/ecosystem-watch.mjs ${{ inputs.dry_run && '--dry-run' || '' }}

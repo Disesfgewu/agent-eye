@@ -1,0 +1,14 @@
+{
+  "_comment": "Upstream projects checked weekly by .github/workflows/ecosystem-watch.yml. Add a repo here and it is baselined on the next run.",
+  "repos": [
+    { "repo": "microsoft/playwright", "why": "engine we depend on; API changes (e.g. _snapshotForAI removal) break us" },
+    { "repo": "microsoft/playwright-mcp", "why": "closest MCP competitor; tool surface + token-saving flags" },
+    { "repo": "microsoft/playwright-cli", "why": "token-efficient CLI+skills approach for coding agents" },
+    { "repo": "ChromeDevTools/chrome-devtools-mcp", "why": "debugging/perf tooling (traces, Lighthouse, slim mode)" },
+    { "repo": "vercel-labs/agent-browser", "why": "lowest-token CLI (snapshot -i, --delta, batch, action policy)" },
+    { "repo": "browser-use/browser-use", "why": "largest agent-in-the-loop browser project; MCP + CLI skill" },
+    { "repo": "browserbase/stagehand", "why": "act/observe/extract SDK with action caching" },
+    { "repo": "lightpanda-io/browser", "why": "lightweight headless engine (cheap runs)" },
+    { "repo": "modelcontextprotocol/typescript-sdk", "why": "protocol/SDK we build on" }
+  ]
+}
