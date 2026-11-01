@@ -14,6 +14,18 @@ const textOf = (r) => (r.content || []).filter((x) => x.type === "text").map((x)
 
 const server = http.createServer((req, res) => {
   if (req.url.startsWith("/missing")) { res.statusCode = 404; return res.end("nf"); }
+  if (req.url.startsWith("/popup")) { res.setHeader("content-type", "text/html"); return res.end("<!doctype html><h1>popup-page</h1>"); }
+  if (req.url.startsWith("/actions")) {
+    res.setHeader("content-type", "text/html");
+    return res.end(`<!doctype html><title>actions</title>
+<select id="s"><option value="a">Alpha</option><option value="b">Beta</option></select>
+<input id="i" aria-label="field" onkeydown="document.getElementById('out').textContent='key:'+event.key">
+<button id="h" onmouseover="document.getElementById('out').textContent='hovered'">hover me</button>
+<button id="d" onclick="document.getElementById('out').textContent = confirm('Delete?') ? 'deleted' : 'kept'">del</button>
+<a id="p" href="/popup" target="_blank">open popup</a>
+<p id="out"></p>
+<script>setTimeout(()=>{const e=document.createElement('p');e.textContent='late-text';document.body.appendChild(e)},600)</script>`);
+  }
   if (req.url.startsWith("/imds")) { res.setHeader("content-type", "text/html"); return res.end('<!doctype html><script>fetch("http://169.254.169.254/latest/meta-data/",{mode:"no-cors"}).catch(()=>{});</script>ssrf probe'); }
   res.setHeader("content-type", "text/html");
   res.end('<!doctype html><h1 id="t">agent-eye e2e ok</h1><button id="b">go</button><script>console.error("e2e-boom");fetch("/missing");</script>');
@@ -75,6 +87,32 @@ await new Promise((r) => setTimeout(r, 500));
 const ssrf = textOf(await c.callTool({ name: "browser_get_network_requests", arguments: { failedOnly: true } }));
 check("page-initiated request to 169.254.169.254 cannot resolve (blocked at the browser)", /169\.254\.169\.254/.test(ssrf) && /ERR_NAME_NOT_RESOLVED/.test(ssrf));
 
+// ---- interaction tools (Issue #4) ----
+const A = `http://127.0.0.1:${port}/actions`;
+const call = async (name, args = {}) => c.callTool({ name, arguments: args });
+await call("browser_navigate", { url: A });
+check("wait_for text that appears later", !(await call("browser_wait_for", { text: "late-text" })).isError);
+check("wait_for times out with an error when the text never appears", (await call("browser_wait_for", { text: "never-there", timeoutMs: 300 })).isError === true);
+check("select_option picks Beta", !(await call("browser_select_option", { target: "#s", values: ["Beta"] })).isError
+  && /option "Beta" \[selected\]/.test(textOf(await call("browser_snapshot"))));
+await call("browser_hover", { target: "#h" });
+check("hover fires mouseover", !(await call("browser_wait_for", { text: "hovered", timeoutMs: 2000 })).isError);
+await call("browser_click", { target: "#i" });
+await call("browser_press_key", { key: "Escape" });
+check("press_key delivers the key", !(await call("browser_wait_for", { text: "key:Escape", timeoutMs: 2000 })).isError);
+await call("browser_click", { target: "#d" });
+check("confirm() is dismissed (not auto-confirmed) and recorded", !(await call("browser_wait_for", { text: "kept", timeoutMs: 2000 })).isError
+  && /\[dialog\] confirm: "Delete\?" -> dismissed/.test(textOf(await call("browser_get_console_logs", { types: ["dialog"] }))));
+const resized = await call("browser_resize", { width: 800, height: 600 });
+check("resize works", !resized.isError && /800x600/.test(textOf(resized)));
+const back = await call("browser_history", { action: "back" });
+check("history back works and stays in scope", !back.isError && /back: http:\/\/127\.0\.0\.1/.test(textOf(back)));
+const fwd = await call("browser_history", { action: "forward" });
+check("history forward returns to the page", !fwd.isError && /\/actions/.test(textOf(fwd)));
+await call("browser_click", { target: "#p" });
+await new Promise((r) => setTimeout(r, 800));
+check("popup (target=_blank) is followed and visible to the agent", /popup-page/.test(textOf(await call("browser_snapshot")))
+  && /\[popup\] opened/.test(textOf(await call("browser_get_console_logs", { types: ["popup"], includeHistory: true }))));
 const usage = await c.callTool({ name: "usage_report", arguments: {} });
 check("usage_report counts the calls made", /browser_snapshot \| [1-9]\d* \|/.test(textOf(usage)) && /Calls: \d+/.test(textOf(usage)));
 

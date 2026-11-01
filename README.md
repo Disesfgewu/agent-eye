@@ -285,6 +285,12 @@ there yourself (project) / to `~/.claude/skills/` (all projects).
 | `start_dev_server(id, command, args?, cwd?)` | execute / highRisk | Spawn an allowlisted command, cwd confined to the workspace. |
 | `get_dev_server_logs(id, limit?)` | observe | stdout/stderr + status. |
 | `stop_dev_server(id)` | execute | Terminate an owned process tree. |
+| `browser_press_key(key)` | interact / sideEffect (Enter) | Press a key or combo (`Escape`, `Tab`, `Control+A`). |
+| `browser_hover(target)` | interact | Hover by ref/selector (menus, tooltips). |
+| `browser_select_option(target, values)` | interact | Choose option(s) in a `<select>`. |
+| `browser_wait_for(text?, textGone?, ms?, timeoutMs?)` | observe | Wait for text to appear/disappear (bounded; max 30 s). |
+| `browser_history(action)` | interact | `back` / `forward` / `reload`. Back/forward landing outside the navigation allowlist is reverted to a blank page. |
+| `browser_resize(width, height)` | interact | Responsive/mobile checks. |
 | `usage_report()` | observe | Estimated token cost of this session's tool calls, per tool (see [Token usage](#token-usage)). |
 
 ## Token usage
@@ -350,6 +356,8 @@ detail in [`plan.v1.md` §7](plan.v1.md).
 | `AGENT_EYE_SHOW_CURSOR` | `agentEye.showCursor` | Pulsing cursor overlay so you can watch where the agent points/clicks (Playwright doesn't move the real OS pointer). On by default. |
 | `AGENT_EYE_SLOWMO` | `agentEye.slowMoMs` | Slow each action by N ms so you can follow along (e.g. 300–800). |
 | `AGENT_EYE_INPUT_LOCK` | — | Lock the user's mouse/keyboard while the agent drives (default on when headed; `0` disables). |
+| `AGENT_EYE_TOOLSET` | — | `core` registers only the original tools (no press/hover/select/wait/history/resize) to save ~780 fixed tokens per session. |
+| `AGENT_EYE_DIALOG` | — | `accept` auto-confirms `confirm()`/`prompt()`; default `dismiss` (never auto-confirms a destructive prompt). `alert()` is always accepted. Every dialog is recorded in the console log as `[dialog] …`. |
 | `AGENT_EYE_DEVICE_SCALE` | — | Render scale factor (default `2`) — keeps canvas UIs crisp on HiDPI displays. |
 | `AGENT_EYE_IDLE_CLOSE_MS` | — | Auto-close the window after this many ms idle (default `180000`; `0` disables). |
 | `AGENT_EYE_BROWSER_CHANNEL` | `agentEye.browserChannel` | (also above) `chrome`/`msedge` to reuse an installed browser. |
