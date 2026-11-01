@@ -46,6 +46,9 @@ check("screenshot returns an image", (shot.content || []).some((x) => x.type ===
 const bad = await c.callTool({ name: "browser_navigate", arguments: { url: "file:///etc/passwd" } });
 check("file:// navigation blocked by policy", /blocked/i.test(textOf(bad)));
 
+const usage = await c.callTool({ name: "usage_report", arguments: {} });
+check("usage_report counts the calls made", /browser_snapshot \| 1 \|/.test(textOf(usage)) && /Calls: \d+/.test(textOf(usage)));
+
 await c.close();
 server.close();
 try { fs.rmSync(ws, { recursive: true, force: true }); } catch {}

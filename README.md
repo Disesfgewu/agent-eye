@@ -285,9 +285,20 @@ there yourself (project) / to `~/.claude/skills/` (all projects).
 | `start_dev_server(id, command, args?, cwd?)` | execute / highRisk | Spawn an allowlisted command, cwd confined to the workspace. |
 | `get_dev_server_logs(id, limit?)` | observe | stdout/stderr + status. |
 | `stop_dev_server(id)` | execute | Terminate an owned process tree. |
+| `usage_report()` | observe | Estimated token cost of this session's tool calls, per tool (see [Token usage](#token-usage)). |
+
+## Token usage
+
+Agent Eye records an **estimate** of the tokens each tool call adds to the agent's context, so you can see
+what a task costs and whether a change made things cheaper:
+
+- `usage_report` tool — per-tool table (calls, output tokens, avg/max), plus the fixed cost of the tool definitions.
+- `.agent-artifacts/usage.json` — live totals for the current session; `usage-history.jsonl` — one summary line per finished session (last 200).
+
+Text is estimated at ~4 chars/token (non-ASCII ≈ 1 token per character; tune with `AGENT_EYE_CHARS_PER_TOKEN`),
+images at `width*height/750` (capped ≈1,600). These are for *relative* comparison, not billing.
 
 ## Security model
-
 Enforced **inside the server**, so a manipulated agent can't get past it. Full
 detail in [`plan.v1.md` §7](plan.v1.md).
 
