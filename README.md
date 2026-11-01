@@ -291,6 +291,8 @@ there yourself (project) / to `~/.claude/skills/` (all projects).
 | `browser_wait_for(text?, textGone?, ms?, timeoutMs?)` | observe | Wait for text to appear/disappear (bounded; max 30 s). |
 | `browser_history(action)` | interact | `back` / `forward` / `reload`. Back/forward landing outside the navigation allowlist is reverted to a blank page. |
 | `browser_resize(width, height)` | interact | Responsive/mobile checks. |
+| `browser_verify_page(url?, waitForText?, snapshot?, settleMs?)` | observe (+ navigation rules) | **One call** instead of navigate + snapshot + console + network: document status, console errors/warnings, failed requests, optional actionable elements. `snapshot:"none"` ≈ 120 tokens. |
+| `browser_batch(steps, report?)` | per step | Up to 20 steps (navigate/click/type/press/select/hover/wait) in one call + health summary. **Every step is permission-checked before any runs**; stops at first failure. |
 | `usage_report()` | observe | Estimated token cost of this session's tool calls, per tool (see [Token usage](#token-usage)). |
 
 ## Token usage

@@ -665,6 +665,10 @@ export class BrowserManager {
     return limit === undefined ? scoped : scoped.slice(-limit);
   }
 
+  async title(): Promise<string> {
+    return this.page && !this.page.isClosed() ? await this.page.title().catch(() => "") : "";
+  }
+
   /** Origin of the current page (e.g. "http://localhost:3000"), for shortening URLs. */
   currentOrigin(): string | undefined {
     const u = this.currentUrl();

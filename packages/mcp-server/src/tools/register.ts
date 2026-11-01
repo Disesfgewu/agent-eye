@@ -10,6 +10,7 @@ import { classifyCommand } from "../security/command-guard.js";
 import { redactHeaders, redactText } from "../security/redaction.js";
 import { log } from "../logger.js";
 import { registerActionTools } from "./register-actions.js";
+import { registerCompositeTools } from "./register-composite.js";
 import {
   diffSnapshots,
   filterInteractive,
@@ -518,6 +519,7 @@ export function registerTools(ctx: ToolContext): void {
   );
 
   registerActionTools(ctx);
+  registerCompositeTools(ctx);
 
   log.info("Registered Agent Eye tools");
 }

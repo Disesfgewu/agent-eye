@@ -123,3 +123,36 @@ test("selectNetwork counts hidden static assets", () => {
   assert.equal(r.hiddenStatic, 1);
   assert.equal(r.shown.length, 1);
 });
+
+import { formatHealth } from "../dist/browser/format.js";
+
+test("formatHealth: summarizes status, console and failures in a few lines", () => {
+  const out = formatHealth({
+    url: "http://localhost:3000/",
+    title: "Shop",
+    origin: "http://localhost:3000",
+    redact: (u) => u,
+    console: [con("error", "TypeError: x"), con("error", "TypeError: x"), con("warning", "w"), con("log", "hi")],
+    network: [
+      net("GET", "http://localhost:3000/", 200, "document"),
+      net("GET", "http://localhost:3000/api/productz", 404, "fetch"),
+      net("GET", "http://localhost:3000/a.js", 200, "script"),
+    ],
+  });
+  assert.equal(
+    out,
+    [
+      "URL: http://localhost:3000/",
+      "Title: Shop   Document: 200",
+      "Console: 2 error(s), 1 warning(s)",
+      "[error] TypeError: x  ×2",
+      "Network: 1 failed of 3 request(s)",
+      "GET 404 fetch /api/productz",
+    ].join("\n")
+  );
+});
+
+test("formatHealth: healthy page is just a few lines", () => {
+  const out = formatHealth({ url: "u", title: "", redact: (x) => x, console: [], network: [net("GET", "u", 200, "document")] });
+  assert.equal(out, "URL: u\nTitle: (none)   Document: 200\nConsole: 0 error(s), 0 warning(s)\nNetwork: 0 failed of 1 request(s)");
+});

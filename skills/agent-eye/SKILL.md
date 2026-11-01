@@ -51,12 +51,14 @@ fix code**, not a stage for a finished result. Antigravity-style rules:
 | `browser_wait_for(text?, textGone?, ms?)` | Wait for async UI instead of polling snapshots |
 | `browser_history(back\|forward\|reload)` | Reload to re-verify after a code change |
 | `browser_resize(width, height)` | Responsive / mobile layout checks |
+| `browser_verify_page(url?, snapshot?)` | **Default first look**: navigate + status + console errors + failed requests + actionable elements in ONE call (`snapshot:"none"` for a ~120-token health check) |
+| `browser_batch(steps)` | A known flow (login, add to cart, fill a form) in ONE call; stops at the first failure and reports page health. Use single steps when exploring |
 | `browser_get_console_logs(types?, limit?)` | #1 bug signal: JS errors, warnings, stack traces — current page load only, so after a reload an empty result means the error is gone |
 | `browser_get_network_requests(failedOnly?, urlContains?)` | Verify frontend↔backend↔DB integration: one line per request (method, status, URL). Start with `failedOnly`; headers/static assets only when needed |
 
 ## The mandatory loop
 
-1. **Open first — probe before starting.** Try `browser_navigate` to the app's likely local URL (the port from the project's config, or a common dev port). `browser_navigate` to localhost is auto-allowed — no permission prompt. If it loads, the server is ALREADY running: skip step 1b entirely. This is the common case; do NOT blindly `start_dev_server`, which is an "ask"-tier action and will interrupt the user with an approval prompt (and may collide with an already-running server / port).
+1. **Open first — probe before starting.** Try `browser_verify_page` (or `browser_navigate`) to the app's likely local URL (the port from the project's config, or a common dev port). `browser_navigate` to localhost is auto-allowed — no permission prompt. If it loads, the server is ALREADY running: skip step 1b entirely. This is the common case; do NOT blindly `start_dev_server`, which is an "ask"-tier action and will interrupt the user with an approval prompt (and may collide with an already-running server / port).
    - **1b. Only if navigation fails** (connection refused): `start_dev_server`, then poll `get_dev_server_logs` until it says listening/ready (don't guess; read it), then `browser_navigate`. The user approves this once.
    A visible window appears on navigate — from here on, you are also demoing.
 2. **See** — `browser_snapshot` first. If it's nearly empty, the app is canvas-rendered → switch to `browser_screenshot` + `browser_click_at`.
