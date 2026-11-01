@@ -19,7 +19,18 @@ const HARD_BLOCKED_HOSTS = new Set([
   "169.254.169.254", // AWS/GCP/Azure IMDS
   "metadata.google.internal",
   "metadata.goog",
+  "100.100.100.200", // Alibaba Cloud metadata
+  "168.63.129.16", // Azure WireServer / host agent
 ]);
+
+/**
+ * Chromium `--host-resolver-rules` value that makes every hard-blocked host
+ * unresolvable for the whole browser — including requests the PAGE makes
+ * (fetch/XHR/iframes/redirects), which the per-call navigation check can't see.
+ * Unlike page.route() interception this does not disable the HTTP cache, so
+ * stale-cache debugging keeps working. (IPv6 metadata literals are not covered.)
+ */
+export const BLOCKED_HOST_RESOLVER_RULES = [...HARD_BLOCKED_HOSTS].map((h) => `MAP ${h} ~NOTFOUND`).join(", ");
 
 export function classifyUrl(rawUrl: string, allowlist: string[]): UrlVerdict {
   let url: URL;

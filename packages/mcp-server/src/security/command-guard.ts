@@ -1,5 +1,6 @@
 import * as path from "node:path";
 import { isInside } from "../config.js";
+import { inlineCodeReason } from "./interpreter-guard.js";
 
 /**
  * Dev-server launch scope enforcement (plan 7.2). Commands are passed as an
@@ -47,6 +48,18 @@ export function classifyCommand(
   );
 
   if (allowed) {
+    // An allowlisted interpreter running inline/remote code is NOT a dev server:
+    // treat it as outside the allowlist so the (default-deny) highRisk policy decides.
+    const reason = inlineCodeReason(base, args);
+    if (reason) {
+      return {
+        verdict: "outside",
+        reason: `${reason}. Interpreters may only run files/scripts, not inline or freshly downloaded code.`,
+        command: trimmed,
+        args,
+        cwd: resolvedCwd,
+      };
+    }
     return { verdict: "allowlisted", command: trimmed, args, cwd: resolvedCwd };
   }
   return {

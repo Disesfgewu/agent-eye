@@ -315,7 +315,19 @@ detail in [`plan.v1.md` §7](plan.v1.md).
   `file://`/`chrome://`, cloud-metadata and link-local IPs are hard-blocked
   regardless of policy (SSRF defense).
 - **Command scope**: argv-only spawn (no shell), shell metacharacters rejected,
-  cwd confined to the workspace, executables allowlisted.
+  cwd confined to the workspace, executables allowlisted. Allowlisting an
+  interpreter does **not** allow inline code: `node -e/-p/-r/--import/--inspect`,
+  `python -c`, `php -r`, `ruby -e`, `deno eval`/remote URLs, and `npx`/`dlx`/`bunx`
+  of packages other than well-known dev servers (`serve`, `vite`, `http-server`, …)
+  are treated as non-allowlisted (→ `highRisk`, denied by default). Limitation: this
+  cannot stop an agent that can also edit project files (e.g. rewrite `package.json`
+  scripts) and then run them.
+- **Request-level SSRF guard**: page-initiated requests (fetch/XHR/iframes/redirects)
+  to cloud-metadata hosts (`169.254.169.254`, `metadata.google.internal`,
+  `metadata.goog`, `100.100.100.200`, `168.63.129.16`) cannot resolve, via
+  Chromium `--host-resolver-rules` (does not disable the HTTP cache, unlike request
+  interception). IPv6 metadata literals and arbitrary external hosts reached *by a
+  page* are not restricted.
 - **Dedicated browser profile** (`.agent-eye/browser-profile/`) — never your real
   one, so the agent never inherits your logins or saved passwords.
 - **Input lock**: while the agent drives a headed window, your real mouse/keyboard

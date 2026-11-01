@@ -2,6 +2,7 @@ import type { BrowserContext, Page, ConsoleMessage } from "playwright";
 import { log } from "../logger.js";
 import { RingBuffer } from "./ring-buffer.js";
 import { findPidsUsingDir } from "../reaper.js";
+import { BLOCKED_HOST_RESOLVER_RULES } from "../security/url-guard.js";
 
 interface Reaper {
   track(pid?: number): void;
@@ -254,6 +255,8 @@ export class BrowserManager {
         // so the agent never gains access to saved credentials (plan 7.2).
         args: [
           "--no-first-run",
+          // Page-initiated requests to cloud-metadata hosts can never resolve (SSRF defense).
+          `--host-resolver-rules=${BLOCKED_HOST_RESOLVER_RULES}`,
           "--no-default-browser-check",
           "--disable-save-password-bubble",
           "--disable-features=PasswordManager,AutofillServerCommunication,Translate,AccountConsistency,SyncDisabledTests",
