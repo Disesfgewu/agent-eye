@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Go, Rust, .NET, JVM and Elixir dev servers** (`go`, `air`, `templ`, `wails`, `cargo`, `trunk`, `dx`, `dotnet`, `mvn`/`mvnw`, `gradle`/`gradlew`, `mix`) are now in the default allowlist, restricted to their dev-loop subcommands. Flags that would run another program, fetch remote code or leave the workspace (`go run -exec`, `cargo --config`, `cargo watch -s`, `dotnet -p:RunCommand`, `mvn -D…jvmArguments`, `gradle -I`, `mix run -e`, …) are refused and fall under `highRisk`. 6 test groups / ~190 allow-deny cases.
 - **Firefox & WebKit engines + device emulation**: `AGENT_EYE_BROWSER=chromium|firefox|webkit`, `AGENT_EYE_DEVICE="iPhone 15"`, `AGENT_EYE_VIEWPORT=WxH`. Cloud-metadata blocking is enforced on every engine (request interception on non-Chromium), so switching engine never weakens the SSRF guard. Clear errors for bad values or an engine that isn't installed.
 - **Maintenance**: MCP server now reports its real version (was hard-coded `0.1.0`); root/server/extension versions unified and guarded by a test; removed the dead instance-lock plumbing (`ownsGlobals`) and its stale README/SKILL text; SKILL no longer contradicts itself on closing the browser and its frontmatter description is shorter (it is loaded into every conversation).
 - **Ecosystem tracking**: `docs/ECOSYSTEM.md` (sourced comparison + support matrix) and a weekly `ecosystem-watch` workflow that keeps one rolling "Ecosystem watch" issue updated with new upstream releases.

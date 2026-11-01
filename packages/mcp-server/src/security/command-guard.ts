@@ -1,6 +1,7 @@
 import * as path from "node:path";
 import { isInside } from "../config.js";
 import { inlineCodeReason } from "./interpreter-guard.js";
+import { WRAPPER_COMMANDS, isPathEscape } from "./toolchains.js";
 
 /**
  * Dev-server launch scope enforcement (plan 7.2). Commands are passed as an
@@ -48,6 +49,19 @@ export function classifyCommand(
   );
 
   if (allowed) {
+    // mvnw / gradlew are project scripts: a path to one must stay inside the workspace.
+    if (WRAPPER_COMMANDS.has(base.toLowerCase()) && /[\/]/.test(trimmed)) {
+      const wrapper = path.resolve(resolvedCwd, trimmed);
+      if (isPathEscape(trimmed) && !isInside(workspaceRoot, wrapper)) {
+        return {
+          verdict: "outside",
+          reason: `Wrapper "${trimmed}" resolves outside the workspace.`,
+          command: trimmed,
+          args,
+          cwd: resolvedCwd,
+        };
+      }
+    }
     // An allowlisted interpreter running inline/remote code is NOT a dev server:
     // treat it as outside the allowlist so the (default-deny) highRisk policy decides.
     const reason = inlineCodeReason(base, args);

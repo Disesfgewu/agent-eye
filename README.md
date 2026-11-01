@@ -249,6 +249,18 @@ default):
 | **Flutter web** | `flutter run -d web-server --web-port 5500` |
 | Django / Flask | `python manage.py runserver` · `flask run` |
 | Rails / Jekyll / Hugo | `rails server` · `jekyll serve` · `hugo server` |
+| **Go** (Gin, Echo, Fiber, chi, templ + HTMX, Wails) | `go run .` · `go run ./cmd/api` · `air` · `templ generate --watch --proxy=…` · `wails dev` |
+| **Rust** backend (Axum, Actix, Rocket, Warp, Poem) | `cargo run` · `cargo watch -x run` |
+| **Rust** frontend / full-stack (Yew, Leptos, Dioxus, Sycamore) | `trunk serve` · `cargo leptos watch` · `dx serve` |
+| **.NET** (ASP.NET Core, Blazor) | `dotnet run` · `dotnet watch run` |
+| **Java / Kotlin** (Spring Boot, Quarkus, Micronaut) | `./mvnw spring-boot:run` · `mvn quarkus:dev` · `./gradlew bootRun` |
+| **Elixir** (Phoenix, LiveView) | `mix phx.server` |
+
+For the compiled-language launchers (`go`, `cargo`, `trunk`, `dx`, `air`, `templ`,
+`wails`, `dotnet`, `mvn`/`mvnw`, `gradle`/`gradlew`, `mix`) only the **dev loop** is
+reachable — see *Command scope* under the security model. Tauri and other native
+shells are not driven (the browser can't see a native window), but their web
+frontend dev server (`npm run dev`, `trunk serve`) is.
 
 > **Flutter / canvas apps**: Flutter web renders to a canvas (CanvasKit), so the
 > accessibility snapshot can be sparse. Agent Eye detects this and tells the agent
@@ -334,6 +346,21 @@ detail in [`plan.v1.md` §7](plan.v1.md).
   are treated as non-allowlisted (→ `highRisk`, denied by default). Limitation: this
   cannot stop an agent that can also edit project files (e.g. rewrite `package.json`
   scripts) and then run them.
+- **Compiled-language toolchains** (`go`, `cargo`, `trunk`, `dx`, `air`, `templ`,
+  `wails`, `dotnet`, `mvn`/`mvnw`, `gradle`/`gradlew`, `mix`) are restricted to their
+  dev-loop subcommands (`go run`, `cargo run|watch|leptos watch`, `trunk serve`,
+  `dotnet run|watch`, `mvn spring-boot:run`, `gradle bootRun`, `mix phx.server`, …).
+  Flags that run another program or load code from elsewhere are refused: `go run
+  -exec/-toolexec/-C/-overlay`, remote `go run mod@ver`, non-`-X/-s/-w` `-ldflags`,
+  `cargo --config/-Z`, `cargo watch -s/-E/--`, `dotnet -p:Prop=…`, Maven/Gradle
+  `-D`/`-P` properties that inject JVM agents or executables, `gradle -I/-b/-p`,
+  `mix run -e`, `templ --cmd`, `air -build.*`. `mvnw`/`gradlew` paths must stay inside
+  the workspace. **Limitation:** compiling or running a project executes project-owned
+  code (`build.rs`, proc-macros, `.air.toml`, Trunk hooks, Maven/Gradle build files),
+  exactly like `npm run dev` runs `package.json` scripts. Do not point the agent at an
+  untrusted repository with `execute: allow`; set `execute` to `ask` in
+  `.agent-eye/policy.json`. Not yet covered: framework subcommands that evaluate code
+  (`manage.py shell -c`, `rails runner`).
 - **Request-level SSRF guard**: page-initiated requests (fetch/XHR/iframes/redirects)
   to cloud-metadata hosts (`169.254.169.254`, `metadata.google.internal`,
   `metadata.goog`, `100.100.100.200`, `168.63.129.16`) cannot resolve, via
