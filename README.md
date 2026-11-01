@@ -361,6 +361,9 @@ detail in [`plan.v1.md` §7](plan.v1.md).
 | `AGENT_EYE_SHOW_CURSOR` | `agentEye.showCursor` | Pulsing cursor overlay so you can watch where the agent points/clicks (Playwright doesn't move the real OS pointer). On by default. |
 | `AGENT_EYE_SLOWMO` | `agentEye.slowMoMs` | Slow each action by N ms so you can follow along (e.g. 300–800). |
 | `AGENT_EYE_INPUT_LOCK` | — | Lock the user's mouse/keyboard while the agent drives (default on when headed; `0` disables). |
+| `AGENT_EYE_BROWSER` | — | `chromium` (default), `firefox` or `webkit`. Install the engine first: `npx playwright install firefox` / `webkit`. `AGENT_EYE_BROWSER_CHANNEL` applies to Chromium only. Metadata-host blocking is enforced on every engine (resolver rule on Chromium, request interception on the others). |
+| `AGENT_EYE_DEVICE` | — | Emulate a [Playwright device](https://playwright.dev/docs/emulation#devices) by name, e.g. `iPhone 15`, `Pixel 7` (user agent, viewport, scale, touch). `isMobile` is ignored on Firefox. |
+| `AGENT_EYE_VIEWPORT` | — | `WIDTHxHEIGHT` (200–3840 × 200–2400), default `1280x800`. `browser_click_at` coordinates follow the viewport. |
 | `AGENT_EYE_TOOLSET` | — | `core` registers only the original tools (no press/hover/select/wait/history/resize) to save ~780 fixed tokens per session. |
 | `AGENT_EYE_DIALOG` | — | `accept` auto-confirms `confirm()`/`prompt()`; default `dismiss` (never auto-confirms a destructive prompt). `alert()` is always accepted. Every dialog is recorded in the console log as `[dialog] …`. |
 | `AGENT_EYE_DEVICE_SCALE` | — | Render scale factor (default `2`) — keeps canvas UIs crisp on HiDPI displays. |

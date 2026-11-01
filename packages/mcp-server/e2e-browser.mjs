@@ -80,12 +80,15 @@ await new Promise((r) => setTimeout(r, 300));
 const cons2 = textOf(await c.callTool({ name: "browser_get_console_logs", arguments: { types: ["error"] } }));
 check("console is scoped to the current page load (no x2)", /\[error\] e2e-boom/.test(cons2) && !/×2/.test(cons2));
 const cons3 = textOf(await c.callTool({ name: "browser_get_console_logs", arguments: { types: ["error"], includeHistory: true } }));
-check("includeHistory returns earlier loads too (x2)", /×2/.test(cons3));
+// Chromium collapses the repeat to "×2"; Firefox includes the page URL in the location so it lists two lines.
+check("includeHistory returns earlier loads too", (cons3.match(/e2e-boom/g) || []).length >= 2 || /×2/.test(cons3));
 // SSRF: a page on an allowlisted host must not be able to reach cloud-metadata addresses.
 await c.callTool({ name: "browser_navigate", arguments: { url: `http://127.0.0.1:${port}/imds` } });
 await new Promise((r) => setTimeout(r, 500));
 const ssrf = textOf(await c.callTool({ name: "browser_get_network_requests", arguments: { failedOnly: true } }));
-check("page-initiated request to 169.254.169.254 cannot resolve (blocked at the browser)", /169\.254\.169\.254/.test(ssrf) && /ERR_NAME_NOT_RESOLVED/.test(ssrf));
+const engine = process.env.AGENT_EYE_BROWSER || "chromium";
+// Chromium blocks at the resolver (ERR_NAME_NOT_RESOLVED); Firefox/WebKit via request interception (engine-specific error text).
+check(`page-initiated request to 169.254.169.254 is blocked (${engine})`, /169\.254\.169\.254/.test(ssrf) && (engine !== "chromium" || /ERR_NAME_NOT_RESOLVED/.test(ssrf)));
 
 // ---- interaction tools (Issue #4) ----
 const A = `http://127.0.0.1:${port}/actions`;
@@ -136,11 +139,11 @@ const failing = await call("browser_batch", { report: "none", steps: [
 check("batch stops at the first failure and marks the rest skipped", failing.isError === true && /1\. wait ✗/.test(textOf(failing)) && /2\. hover – skipped/.test(textOf(failing)));
 await call("browser_navigate", { url: A });
 const denied = await call("browser_batch", { report: "none", steps: [
-  { action: "hover", target: "#h" },
+  { action: "select", target: "#s", values: ["Beta"] },
   { action: "navigate", url: "https://example.com/" },
 ] });
 const afterDenied = textOf(await call("browser_snapshot"));
-check("batch checks every step first: a denied step means NOTHING ran", denied.isError === true && /Nothing was executed/.test(textOf(denied)) && !/hovered/.test(afterDenied));
+check("batch checks every step first: a denied step means NOTHING ran", denied.isError === true && /Nothing was executed/.test(textOf(denied)) && !/option "Beta" \[selected\]/.test(afterDenied));
 check("batch rejects malformed steps without running anything", (await call("browser_batch", { steps: [{ action: "click" }] })).isError === true);
 const usage = await c.callTool({ name: "usage_report", arguments: {} });
 check("usage_report counts the calls made", /browser_snapshot \| [1-9]\d* \|/.test(textOf(usage)) && /Calls: \d+/.test(textOf(usage)));

@@ -2,7 +2,8 @@ import type { BrowserContext, Page, ConsoleMessage } from "playwright";
 import { log } from "../logger.js";
 import { RingBuffer } from "./ring-buffer.js";
 import { findPidsUsingDir } from "../reaper.js";
-import { BLOCKED_HOST_RESOLVER_RULES } from "../security/url-guard.js";
+import { BLOCKED_HOST_RESOLVER_RULES, isBlockedHost } from "../security/url-guard.js";
+import { DEFAULT_VIEWPORT, launchErrorHint, parseEngine, parseViewport, resolveDevice, type DeviceOptions, type EngineName, type Viewport } from "./engine.js";
 
 interface Reaper {
   track(pid?: number): void;
@@ -19,21 +20,20 @@ interface Reaper {
  * resolution), because the esbuild bundle emits a native `import("playwright")`
  * and ESM dynamic import does NOT honor NODE_PATH. In dev (running from the repo)
  * the env var is unset and the plain import resolves from node_modules normally. */
-async function loadChromium() {
+async function loadPlaywright(): Promise<PlaywrightModule> {
   const runtimeDir = process.env.AGENT_EYE_RUNTIME_DIR;
   if (runtimeDir) {
     try {
       const { createRequire } = await import("node:module");
       const path = await import("node:path");
       const req = createRequire(path.join(runtimeDir, "__agent_eye_resolve__.js"));
-      return req("playwright").chromium;
+      return req("playwright") as PlaywrightModule;
     } catch {
       /* fall through to plain resolution / the friendly error below */
     }
   }
   try {
-    const pw = await import("playwright");
-    return pw.chromium;
+    return (await import("playwright")) as unknown as PlaywrightModule;
   } catch {
     throw new Error(
       "Playwright is not installed. Run the command \"Agent Eye: Install Browser Runtime\" " +
@@ -41,6 +41,10 @@ async function loadChromium() {
     );
   }
 }
+
+type PlaywrightModule = Pick<typeof import("playwright"), "chromium" | "firefox" | "webkit"> & {
+  devices: Record<string, DeviceOptions & { defaultBrowserType?: string }>;
+};
 
 export interface ConsoleEntry {
   /** Navigation generation the entry belongs to (see BrowserManager.epoch). */
@@ -213,6 +217,8 @@ export class BrowserManager {
    * entries are tagged with it so reads default to "this page load only" — after a
    * fix + reload the agent must not re-read the previous load's errors. */
   private epoch = 0;
+  private viewport: Viewport = DEFAULT_VIEWPORT;
+  private engine: EngineName = "chromium";
   private lastSnapshot: { key: string; text: string } | undefined;
 
   /** Resets the idle-close countdown; call on every browser interaction. */
@@ -240,35 +246,81 @@ export class BrowserManager {
     if (this.page && !this.page.isClosed()) return this.page;
 
     if (!this.context) {
+      const engine = parseEngine(process.env.AGENT_EYE_BROWSER);
+      if (this.channel && engine !== "chromium") {
+        throw new Error(`AGENT_EYE_BROWSER_CHANNEL (${this.channel}) only applies to chromium, not ${engine}.`);
+      }
+      const pw = await loadPlaywright();
+      const envViewport = parseViewport(process.env.AGENT_EYE_VIEWPORT);
+      const device = process.env.AGENT_EYE_DEVICE
+        ? resolveDevice(pw.devices, process.env.AGENT_EYE_DEVICE, engine)
+        : undefined;
+      this.viewport = envViewport ?? device?.viewport ?? DEFAULT_VIEWPORT;
+      this.engine = engine;
       log.info("Launching browser", {
+        engine,
         profileDir: this.profileDir,
-        channel: this.channel ?? "bundled-chromium",
+        channel: this.channel ?? "bundled",
+        device: process.env.AGENT_EYE_DEVICE,
+        viewport: this.viewport,
       });
-      const chromium = await loadChromium();
-      this.context = await chromium.launchPersistentContext(this.profileDir, {
+      const common = {
         // Headed by default so the user can watch (the whole point). The env
         // knob enables headless for CI / remote environments (plan v1.1).
         headless: process.env.AGENT_EYE_HEADLESS === "1",
         // slowMo paces actions so a human can follow along when watching.
         slowMo: this.slowMo,
-        channel: this.channel,
-        viewport: { width: 1280, height: 800 },
         // Render at 2x so the app is crisp on HiDPI / scaled displays (default
         // dSF=1 makes canvas-rendered Flutter look blurry when the OS upscales
-        // the window). Logical coords stay 1280x800; screenshots use scale:css.
-        deviceScaleFactor: Number(process.env.AGENT_EYE_DEVICE_SCALE) || 2,
-        // Harden the profile: no password manager, autofill, or account sync,
-        // so the agent never gains access to saved credentials (plan 7.2).
-        args: [
-          "--no-first-run",
-          // Page-initiated requests to cloud-metadata hosts can never resolve (SSRF defense).
-          `--host-resolver-rules=${BLOCKED_HOST_RESOLVER_RULES}`,
-          "--no-default-browser-check",
-          "--disable-save-password-bubble",
-          "--disable-features=PasswordManager,AutofillServerCommunication,Translate,AccountConsistency,SyncDisabledTests",
-        ],
-        ignoreDefaultArgs: ["--enable-automation"],
-      });
+        // the window). A named device brings its own factor; the env var wins.
+        // Logical coords follow the viewport; screenshots use scale:css.
+        deviceScaleFactor: Number(process.env.AGENT_EYE_DEVICE_SCALE) || device?.deviceScaleFactor || 2,
+        ...(device ? { userAgent: device.userAgent, isMobile: device.isMobile, hasTouch: device.hasTouch } : {}),
+        viewport: this.viewport,
+      };
+      try {
+        if (engine === "chromium") {
+          this.context = await pw.chromium.launchPersistentContext(this.profileDir, {
+            ...common,
+            channel: this.channel,
+            // Harden the profile: no password manager, autofill, or account sync,
+            // so the agent never gains access to saved credentials (plan 7.2).
+            args: [
+              "--no-first-run",
+              // Page-initiated requests to cloud-metadata hosts can never resolve (SSRF defense).
+              `--host-resolver-rules=${BLOCKED_HOST_RESOLVER_RULES}`,
+              "--no-default-browser-check",
+              "--disable-save-password-bubble",
+              "--disable-features=PasswordManager,AutofillServerCommunication,Translate,AccountConsistency,SyncDisabledTests",
+            ],
+            ignoreDefaultArgs: ["--enable-automation"],
+          });
+        } else if (engine === "firefox") {
+          this.context = await pw.firefox.launchPersistentContext(this.profileDir, {
+            ...common,
+            firefoxUserPrefs: {
+              "signon.rememberSignons": false,
+              "signon.autofillForms": false,
+              "extensions.formautofill.addresses.enabled": false,
+              "extensions.formautofill.creditCards.enabled": false,
+              "browser.shell.checkDefaultBrowser": false,
+            },
+          });
+        } else {
+          this.context = await pw.webkit.launchPersistentContext(this.profileDir, common);
+        }
+      } catch (err) {
+        throw launchErrorHint(engine, err) ?? err;
+      }
+      if (engine !== "chromium") {
+        // Chromium blocks metadata hosts at the resolver (cache-friendly). Other
+        // engines have no equivalent switch, so enforce the same hard block by
+        // request interception — switching engine must never weaken the SSRF guard.
+        await this.context.route(
+          (url) => isBlockedHost(url.hostname),
+          (route) => route.abort("namenotresolved")
+        );
+      }
       // If the user closes the browser window (or it crashes), the context
       // object we're holding is now dead but stays non-undefined — without
       // this, every future call would keep reusing it and fail with "Target
@@ -324,13 +376,13 @@ export class BrowserManager {
    * verify against.
    */
   private async forceWindowBounds(page: Page): Promise<void> {
-    if (process.env.AGENT_EYE_HEADLESS === "1") return;
+    if (process.env.AGENT_EYE_HEADLESS === "1" || this.engine !== "chromium") return;
     try {
       const client = await page.context().newCDPSession(page);
       const { windowId } = await client.send("Browser.getWindowForTarget");
       await client.send("Browser.setWindowBounds", {
         windowId,
-        bounds: { width: 1280, height: 800, windowState: "normal" },
+        bounds: { width: this.viewport.width, height: this.viewport.height, windowState: "normal" },
       });
       await client.detach().catch(() => undefined);
     } catch (err) {
@@ -501,7 +553,7 @@ export class BrowserManager {
     await page.goto(url, { waitUntil: "domcontentloaded" });
     if (this.showCursor) {
       // Place the agent cursor at centre so it's visible immediately.
-      const vp = page.viewportSize() ?? { width: 1280, height: 800 };
+      const vp = page.viewportSize() ?? this.viewport;
       await this.setCursor(page, vp.width / 2, vp.height / 2);
     }
     return { url: page.url(), title: await page.title() };
@@ -569,7 +621,8 @@ export class BrowserManager {
   async resize(width: number, height: number): Promise<void> {
     const page = await this.ensurePage();
     await page.setViewportSize({ width, height });
-    if (process.env.AGENT_EYE_HEADLESS === "1") return;
+    this.viewport = { width, height };
+    if (process.env.AGENT_EYE_HEADLESS === "1" || this.engine !== "chromium") return;
     try {
       const client = await page.context().newCDPSession(page);
       const { windowId } = await client.send("Browser.getWindowForTarget");

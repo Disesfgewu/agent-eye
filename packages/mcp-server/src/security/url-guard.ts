@@ -30,6 +30,12 @@ const HARD_BLOCKED_HOSTS = new Set([
  * Unlike page.route() interception this does not disable the HTTP cache, so
  * stale-cache debugging keeps working. (IPv6 metadata literals are not covered.)
  */
+/** True for hosts that must be unreachable from any page (metadata + link-local). */
+export function isBlockedHost(hostname: string): boolean {
+  const host = hostname.toLowerCase();
+  return HARD_BLOCKED_HOSTS.has(host) || isLinkLocalIpv4(host);
+}
+
 export const BLOCKED_HOST_RESOLVER_RULES = [...HARD_BLOCKED_HOSTS].map((h) => `MAP ${h} ~NOTFOUND`).join(", ");
 
 export function classifyUrl(rawUrl: string, allowlist: string[]): UrlVerdict {

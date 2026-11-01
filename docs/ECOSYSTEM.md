@@ -15,7 +15,7 @@ are **blog/vendor claims, not our measurements** and are labelled as such._
 | [agent-browser](https://github.com/vercel-labs/agent-browser) (Vercel Labs) | Rust CLI + daemon (+ `mcp` mode) | Apache-2.0 | Chrome (default), Lightpanda, Safari/iOS via WebDriver, attach via CDP | Lowest token cost: `snapshot -i`, `--delta`, `batch`, `--max-output`; auth vault; action policy |
 | [Browser Use](https://github.com/browser-use/browser-use) | Python library, CLI (+ skill), MCP | MIT | Local, cloud, or remote over CDP | An LLM *agent loop* per task; largest community; paid cloud browsers |
 | [Stagehand](https://github.com/browserbase/stagehand) (Browserbase) | SDK (TS/Python/Go) + hosted MCP | MIT (SDK) | Local Chrome or Browserbase cloud | `act` / `observe` / `extract` primitives; cached actions skip the model |
-| **Agent Eye** (this repo) | MCP server + VS Code extension + Agent Skill | Apache-2.0 | Chromium (system Chrome/Edge via channel) — see gaps | **Watch-along** headed browser + server-side permission policy + managed dev servers + token ledger |
+| **Agent Eye** (this repo) | MCP server + VS Code extension + Agent Skill | Apache-2.0 | Chromium (default; system Chrome/Edge via channel), Firefox, WebKit | **Watch-along** headed browser + server-side permission policy + managed dev servers + token ledger |
 
 Other things worth knowing: the hosted Browserbase MCP server exposes `navigate`/`act`/`observe`/`extract`
 (its local `@browserbasehq/mcp` package is archived); [Lightpanda](https://github.com/lightpanda-io/browser)
@@ -62,8 +62,8 @@ vendors benchmark themselves; the only numbers we trust for decisions are ones f
 |---|---|---|---|---|
 | Click / type / press / hover / select / wait / history / resize | ✅ | ✅ | ✅ | ✅ (#16) |
 | Dialogs, popups/tabs | ✅ | ✅ | ✅ | ⚠️ auto-handled & followed; no tab list/switch |
-| Firefox / WebKit | ✅ | ❌ | ⚠️ (WebDriver/Safari) | ❌ → Issue #5 |
-| Device emulation | ✅ | ✅ (`emulate`) | n/v | ❌ → Issue #5 |
+| Firefox / WebKit | ✅ | ❌ | ⚠️ (WebDriver/Safari) | ✅ `AGENT_EYE_BROWSER` (#5) |
+| Device emulation | ✅ | ✅ (`emulate`) | n/v | ✅ `AGENT_EYE_DEVICE` / `AGENT_EYE_VIEWPORT` (#5); `browser_resize` at runtime (#16) |
 | Attach to the user's running Chrome (CDP / extension) | ✅ | n/v | ✅ | ❌ (by design: dedicated profile; revisit with ownership rules) |
 | File upload, drag, multi-field form fill | ✅ | ✅ | ✅ (`upload`, `drag`, `batch`) | ❌ (needs a file-scope policy) |
 | Cookies / localStorage / storage state | ✅ (`--caps=storage`) | ❌ | ✅ | ❌ (sensitive; opt-in policy first) |
@@ -82,7 +82,7 @@ Agent Eye is **not** trying to be the broadest automation server — Playwright 
 *safe, watchable frontend debugging loops* (run the dev server, watch the agent work, enforce what it may do,
 measure what it costs). Suggested priorities, by value for that lane:
 
-1. **Finish the cheap wins** — Firefox/WebKit + device emulation (#5), `depth`/`find`, `--if-changed` screenshots, write-large-output-to-file.
+1. **Finish the cheap wins** — `depth`/`find`, `--if-changed` screenshots, write-large-output-to-file.
 2. **Debugging depth** — Lighthouse/perf-trace, source-mapped console errors (DevTools MCP's strength); these are the most relevant gaps for a *debugging* tool.
 3. **Careful, opt-in capabilities** — file upload and storage access behind explicit policy categories; never default-on.
 4. **Re-measure quarterly** with `usage_report` on a fixed set of tasks, and update §2.
