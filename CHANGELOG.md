@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Token-lean tool output** (measured with the ledger on a 40-script / 60-product page: network dump 11,089 → 167 tokens, repeat snapshot with `delta` ~−98%, `interactive` snapshot ~−50%). Network is one line per request, static assets hidden unless failed, headers opt-in. Console/network now default to the **current page load** (reset on navigation/reload) with `includeHistory` to opt out; duplicates collapse to `×N`. `browser_snapshot` gains `interactive`/`selector`/`delta`/`maxChars` (default cap 12k chars); `browser_screenshot` gains `selector`; `browser_evaluate` output capped; shorter untrusted-data framing; trimmed tool descriptions.
 - **Token ledger + `usage_report` tool.** Every tool call's argument/result size is estimated and aggregated per tool; persisted to `.agent-artifacts/usage.json` and `usage-history.jsonl`. Includes the fixed tool-definition overhead. Adds unit tests (`npm test`).
 
 ## 0.1.3

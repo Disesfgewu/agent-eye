@@ -42,6 +42,8 @@ async function loadChromium() {
 }
 
 export interface ConsoleEntry {
+  /** Navigation generation the entry belongs to (see BrowserManager.epoch). */
+  epoch: number;
   timestamp: string;
   type: string;
   text: string;
@@ -49,6 +51,7 @@ export interface ConsoleEntry {
 }
 
 export interface NetworkEntry {
+  epoch: number;
   timestamp: string;
   method: string;
   url: string;
@@ -199,6 +202,11 @@ export class BrowserManager {
       ? 180_000
       : Number(process.env.AGENT_EYE_IDLE_CLOSE_MS);
   private idleTimer: ReturnType<typeof setTimeout> | undefined;
+  /** Bumped on every main-frame document navigation/reload. Console and network
+   * entries are tagged with it so reads default to "this page load only" — after a
+   * fix + reload the agent must not re-read the previous load's errors. */
+  private epoch = 0;
+  private lastSnapshot: { key: string; text: string } | undefined;
 
   /** Resets the idle-close countdown; call on every browser interaction. */
   private touch(): void {
@@ -387,9 +395,18 @@ export class BrowserManager {
   }
 
   private attachListeners(page: Page): void {
+    page.on("request", (request) => {
+      try {
+        if (request.isNavigationRequest() && request.frame() === page.mainFrame()) this.epoch++;
+      } catch {
+        /* service-worker requests have no frame */
+      }
+    });
+
     page.on("console", (msg: ConsoleMessage) => {
       const loc = msg.location();
       this.consoleBuffer.push({
+        epoch: this.epoch,
         timestamp: new Date().toISOString(),
         type: msg.type(),
         text: truncate(msg.text(), MAX_CONSOLE_TEXT),
@@ -399,6 +416,7 @@ export class BrowserManager {
 
     page.on("pageerror", (err) => {
       this.consoleBuffer.push({
+        epoch: this.epoch,
         timestamp: new Date().toISOString(),
         type: "error",
         text: truncate(`${err.name}: ${err.message}\n${err.stack ?? ""}`, MAX_CONSOLE_TEXT),
@@ -409,6 +427,7 @@ export class BrowserManager {
       try {
         const response = await request.response();
         this.networkBuffer.push({
+          epoch: this.epoch,
           timestamp: new Date().toISOString(),
           method: request.method(),
           url: request.url(),
@@ -424,6 +443,7 @@ export class BrowserManager {
 
     page.on("requestfailed", (request) => {
       this.networkBuffer.push({
+        epoch: this.epoch,
         timestamp: new Date().toISOString(),
         method: request.method(),
         url: request.url(),
@@ -494,10 +514,12 @@ export class BrowserManager {
    * `_snapshotForAI` (removed in 1.61) is kept as a fallback for older builds, and
    * the plain ARIA snapshot (no refs) as a last resort.
    */
-  async snapshot(): Promise<string> {
+  async snapshot(selector?: string): Promise<string> {
     const page = await this.ensurePage();
+    // A selector scopes the snapshot to one subtree (far fewer tokens on big pages).
+    const root = selector ? this.locate(page, selector).first() : page.locator("body");
     try {
-      return await page.locator("body").ariaSnapshot({ mode: "ai" });
+      return await root.ariaSnapshot({ mode: "ai" });
     } catch (err) {
       log.debug("ariaSnapshot({mode:\"ai\"}) failed, trying legacy fallbacks", { error: String(err) });
     }
@@ -509,11 +531,24 @@ export class BrowserManager {
         /* fall through to the plain snapshot */
       }
     }
-    return await page.locator("body").ariaSnapshot();
+    return await root.ariaSnapshot();
   }
 
-  async screenshot(fullPage: boolean): Promise<Buffer> {
+  /** Previous snapshot for `key` (url + options), for delta mode. */
+  previousSnapshot(key: string): string | undefined {
+    return this.lastSnapshot?.key === key ? this.lastSnapshot.text : undefined;
+  }
+
+  rememberSnapshot(key: string, text: string): void {
+    this.lastSnapshot = { key, text };
+  }
+
+  async screenshot(fullPage: boolean, selector?: string): Promise<Buffer> {
     const page = await this.ensurePage();
+    // An element screenshot is smaller in pixels, hence fewer image tokens.
+    if (selector) {
+      return await this.locate(page, selector).first().screenshot({ type: "png", scale: "css", timeout: 10_000 });
+    }
     // scale:"css" keeps the screenshot at logical 1280x800 regardless of the
     // 2x deviceScaleFactor, so coordinates read off it match browser_click_at.
     return await page.screenshot({ fullPage, type: "png", scale: "css" });
@@ -525,12 +560,27 @@ export class BrowserManager {
     return await page.evaluate(expression);
   }
 
-  getConsole(limit?: number): ConsoleEntry[] {
-    return this.consoleBuffer.recent(limit);
+  /** Console entries; by default only the current page load (see `epoch`). */
+  getConsole(limit?: number, includeHistory = false): ConsoleEntry[] {
+    const all = this.consoleBuffer.recent();
+    const scoped = includeHistory ? all : all.filter((e) => e.epoch === this.epoch);
+    return limit === undefined ? scoped : scoped.slice(-limit);
   }
 
-  getNetwork(limit?: number): NetworkEntry[] {
-    return this.networkBuffer.recent(limit);
+  getNetwork(limit?: number, includeHistory = false): NetworkEntry[] {
+    const all = this.networkBuffer.recent();
+    const scoped = includeHistory ? all : all.filter((e) => e.epoch === this.epoch);
+    return limit === undefined ? scoped : scoped.slice(-limit);
+  }
+
+  /** Origin of the current page (e.g. "http://localhost:3000"), for shortening URLs. */
+  currentOrigin(): string | undefined {
+    const u = this.currentUrl();
+    try {
+      return u ? new URL(u).origin : undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   currentUrl(): string | undefined {

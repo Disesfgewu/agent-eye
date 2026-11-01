@@ -43,12 +43,12 @@ fix code**, not a stage for a finished result. Antigravity-style rules:
 | `get_dev_server_logs(id, limit?)` | Poll startup output ("listening", "serving", errors) |
 | `stop_dev_server(id)` | Tear down a server you started |
 | `browser_navigate(url)` | Open the app (localhost by default; window pops up, user watches) |
-| `browser_snapshot()` | PRIMARY eyes: accessibility tree with `[ref=eN]` handles — cheap, structured |
+| `browser_snapshot(interactive?, selector?, delta?)` | PRIMARY eyes: accessibility tree with `[ref=eN]` handles — cheap, structured. On big pages use `interactive` (actionable elements only), `selector` (one subtree), or `delta` (changes since last snapshot) |
 | `browser_screenshot(fullPage?)` | Visual check; REQUIRED for canvas UIs; saved to the user's timeline |
 | `browser_click(target)` / `browser_type(target, text, submit?)` | Interact via snapshot ref or Playwright selector |
 | `browser_click_at(x, y)` | Canvas UIs (Flutter web, WebGL, games): read coordinates off a screenshot, click them |
-| `browser_get_console_logs(limit?)` | #1 bug signal: JS errors, warnings, stack traces |
-| `browser_get_network_requests(limit?)` | Verify frontend↔backend↔DB integration: method, URL, status |
+| `browser_get_console_logs(types?, limit?)` | #1 bug signal: JS errors, warnings, stack traces — current page load only, so after a reload an empty result means the error is gone |
+| `browser_get_network_requests(failedOnly?, urlContains?)` | Verify frontend↔backend↔DB integration: one line per request (method, status, URL). Start with `failedOnly`; headers/static assets only when needed |
 
 ## The mandatory loop
 

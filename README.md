@@ -272,13 +272,13 @@ there yourself (project) / to `~/.claude/skills/` (all projects).
 | Tool | Action category | Purpose |
 |---|---|---|
 | `browser_navigate(url)` | interact / highRisk | Open an http(s) URL (allowlisted hosts only). |
-| `browser_snapshot()` | observe | Accessibility-tree snapshot with `[ref=eN]` handles — the agent's primary "eyes". |
+| `browser_snapshot(interactive?, selector?, delta?, maxChars?)` | observe | Accessibility-tree snapshot with `[ref=eN]` handles — the agent's primary "eyes". `interactive` = actionable elements only, `selector` = one subtree, `delta` = only changes since last time; output capped (12k chars). |
 | `browser_click(target)` | interact | Click by ref or Playwright selector. |
 | `browser_click_at(x, y)` | interact | Click at viewport coordinates — for canvas UIs (Flutter web, WebGL, games) with no selectable DOM. |
 | `browser_type(target, text, submit?)` | interact / sideEffect | Fill an input; `submit` presses Enter (side-effecting). |
-| `browser_screenshot(fullPage?)` | observe | PNG saved to the timeline and returned. |
-| `browser_get_console_logs(limit?)` | observe | Console messages + uncaught errors. |
-| `browser_get_network_requests(limit?)` | observe | Requests with **sensitive headers redacted**. |
+| `browser_screenshot(fullPage?, selector?)` | observe | PNG saved to the timeline and returned (`selector` crops to one element = fewer tokens). |
+| `browser_get_console_logs(types?, limit?, includeHistory?)` | observe | Console messages + uncaught errors of the **current page load** (reset on navigate/reload), duplicates collapsed `×N`. |
+| `browser_get_network_requests(failedOnly?, urlContains?, includeStatic?, includeHeaders?, limit?, includeHistory?)` | observe | One line per request (`GET 404 fetch /api/x`) for the current page load; static assets hidden unless failed; headers only on request, with **sensitive headers redacted**. |
 | `browser_show_status(message)` | interact | Live narration banner in the window so the watching user can follow the agent's work. |
 | `browser_close()` | — | Close the window when done (also auto-closes after idle; server stays alive & relaunches lazily). |
 | `browser_evaluate(expression)` | highRisk | Arbitrary JS — **disabled by default**. |
