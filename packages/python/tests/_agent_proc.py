@@ -19,7 +19,7 @@ def main() -> None:
     workspace = sys.argv[1]
     eye = AgentEye(workspace=workspace, policy=Policy(), on_approve=lambda *_: True, headless=True)
     out = sys.stdout
-    out.write(json.dumps({"ready": True}) + "\n")
+    out.write(json.dumps({"ready": True, "pid": os.getpid()}) + "\n")
     out.flush()
     for line in sys.stdin:
         cmd = json.loads(line)

@@ -28,6 +28,7 @@ from . import detect as detect_mod
 from . import engine as engine_mod
 from . import format as fmt
 from . import perf as perf_mod
+from .reaper import ProcessReaper
 from . import state_guard
 from .ready import extract_ports, port_open, wait_for_port
 
@@ -129,7 +130,11 @@ class AgentEye:
         self._perf_pages = weakref.WeakSet()
         # confirm()/prompt() are dismissed unless AGENT_EYE_DIALOG=accept; alert()/beforeunload only inform.
         self._dialog_accept = os.environ.get("AGENT_EYE_DIALOG") == "accept"
-        self._dev = DevServerManager()
+        # Reap dev servers orphaned by an earlier instance of this workspace that died abruptly (Issue #68).
+        pids_dir = os.path.join(self.state_dir, "pids")
+        ProcessReaper.reap_stale(pids_dir)
+        self._reaper = ProcessReaper(pids_dir)
+        self._dev = DevServerManager(self._reaper)
 
     # -- lifecycle ---------------------------------------------------------
     def __enter__(self):
@@ -169,6 +174,7 @@ class AgentEye:
 
     def close(self):
         self._dev.stop_all()
+        self._reaper.dispose()
         self.close_browser()
         if self._pw is not None:
             try:
