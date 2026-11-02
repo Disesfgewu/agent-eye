@@ -59,7 +59,11 @@ const c = new Client({ name: "e2e", version: "0" }, {});
 await c.connect(transport);
 
 let ok = true;
-const check = (name, cond) => { if (!cond) ok = false; console.log(`${cond ? "PASS" : "FAIL"}  ${name}`); };
+const check = (name, cond, detail = "") => {
+  if (!cond) ok = false;
+  console.log(`${cond ? "PASS" : "FAIL"}  ${name}`);
+  if (!cond && detail) console.log("      " + String(detail).split("\n").join("\n      ").slice(0, 1500));
+};
 
 const tools = (await c.listTools()).tools;
 check(`tools listed (${tools.length})`, tools.length >= 13);
