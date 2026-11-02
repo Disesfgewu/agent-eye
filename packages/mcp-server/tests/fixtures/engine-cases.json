@@ -1,0 +1,575 @@
+{
+ "_comment": "Golden cases from the TypeScript reference (browser/engine.ts); executed by the Node and Python suites.",
+ "devices": {
+  "iPhone 15": {
+   "userAgent": "UA-iphone",
+   "viewport": {
+    "width": 393,
+    "height": 659
+   },
+   "deviceScaleFactor": 3,
+   "isMobile": true,
+   "hasTouch": true,
+   "defaultBrowserType": "webkit"
+  },
+  "iPhone 15 Pro": {
+   "userAgent": "UA-iphone-pro",
+   "viewport": {
+    "width": 393,
+    "height": 659
+   },
+   "deviceScaleFactor": 3,
+   "isMobile": true,
+   "hasTouch": true,
+   "defaultBrowserType": "webkit"
+  },
+  "Pixel 7": {
+   "userAgent": "UA-pixel",
+   "viewport": {
+    "width": 412,
+    "height": 839
+   },
+   "deviceScaleFactor": 2.625,
+   "isMobile": true,
+   "hasTouch": true,
+   "defaultBrowserType": "chromium"
+  },
+  "Desktop Chrome": {
+   "userAgent": "UA-desktop",
+   "viewport": {
+    "width": 1280,
+    "height": 720
+   },
+   "deviceScaleFactor": 1,
+   "isMobile": false,
+   "hasTouch": false,
+   "defaultBrowserType": "chromium"
+  }
+ },
+ "engines": [
+  {
+   "input": null,
+   "value": "chromium"
+  },
+  {
+   "input": "",
+   "value": "chromium"
+  },
+  {
+   "input": "   ",
+   "value": "chromium"
+  },
+  {
+   "input": "chromium",
+   "value": "chromium"
+  },
+  {
+   "input": "Firefox",
+   "value": "firefox"
+  },
+  {
+   "input": " WEBKIT ",
+   "value": "webkit"
+  },
+  {
+   "input": "safari",
+   "error": "AGENT_EYE_BROWSER=\"safari\" is not supported. Use one of: chromium, firefox, webkit."
+  },
+  {
+   "input": "chrome",
+   "error": "AGENT_EYE_BROWSER=\"chrome\" is not supported. Use one of: chromium, firefox, webkit."
+  },
+  {
+   "input": "edge",
+   "error": "AGENT_EYE_BROWSER=\"edge\" is not supported. Use one of: chromium, firefox, webkit."
+  }
+ ],
+ "viewports": [
+  {
+   "input": "1280x800",
+   "value": {
+    "width": 1280,
+    "height": 800
+   }
+  },
+  {
+   "input": "390X844",
+   "value": {
+    "width": 390,
+    "height": 844
+   }
+  },
+  {
+   "input": " 800x600 ",
+   "value": {
+    "width": 800,
+    "height": 600
+   }
+  },
+  {
+   "input": "",
+   "value": null
+  },
+  {
+   "input": "  ",
+   "value": null
+  },
+  {
+   "input": null,
+   "value": null
+  },
+  {
+   "input": "100x100",
+   "error": "AGENT_EYE_VIEWPORT=\"100x100\" is invalid. Use WIDTHxHEIGHT, e.g. 1280x800 (200–3840 x 200–2400)."
+  },
+  {
+   "input": "9999x800",
+   "error": "AGENT_EYE_VIEWPORT=\"9999x800\" is invalid. Use WIDTHxHEIGHT, e.g. 1280x800 (200–3840 x 200–2400)."
+  },
+  {
+   "input": "abc",
+   "error": "AGENT_EYE_VIEWPORT=\"abc\" is invalid. Use WIDTHxHEIGHT, e.g. 1280x800 (200–3840 x 200–2400)."
+  },
+  {
+   "input": "1280",
+   "error": "AGENT_EYE_VIEWPORT=\"1280\" is invalid. Use WIDTHxHEIGHT, e.g. 1280x800 (200–3840 x 200–2400)."
+  },
+  {
+   "input": "1280x",
+   "error": "AGENT_EYE_VIEWPORT=\"1280x\" is invalid. Use WIDTHxHEIGHT, e.g. 1280x800 (200–3840 x 200–2400)."
+  },
+  {
+   "input": "12345x800",
+   "error": "AGENT_EYE_VIEWPORT=\"12345x800\" is invalid. Use WIDTHxHEIGHT, e.g. 1280x800 (200–3840 x 200–2400)."
+  },
+  {
+   "input": "200x200",
+   "value": {
+    "width": 200,
+    "height": 200
+   }
+  },
+  {
+   "input": "3840x2400",
+   "value": {
+    "width": 3840,
+    "height": 2400
+   }
+  },
+  {
+   "input": "3841x800",
+   "error": "AGENT_EYE_VIEWPORT=\"3841x800\" is invalid. Use WIDTHxHEIGHT, e.g. 1280x800 (200–3840 x 200–2400)."
+  },
+  {
+   "input": "199x800",
+   "error": "AGENT_EYE_VIEWPORT=\"199x800\" is invalid. Use WIDTHxHEIGHT, e.g. 1280x800 (200–3840 x 200–2400)."
+  },
+  {
+   "input": "800x2401",
+   "error": "AGENT_EYE_VIEWPORT=\"800x2401\" is invalid. Use WIDTHxHEIGHT, e.g. 1280x800 (200–3840 x 200–2400)."
+  }
+ ],
+ "deviceCases": [
+  {
+   "name": "iPhone 15",
+   "engine": "chromium",
+   "value": {
+    "userAgent": "UA-iphone",
+    "viewport": {
+     "width": 393,
+     "height": 659
+    },
+    "deviceScaleFactor": 3,
+    "hasTouch": true,
+    "isMobile": true
+   }
+  },
+  {
+   "name": "iPhone 15",
+   "engine": "firefox",
+   "value": {
+    "userAgent": "UA-iphone",
+    "viewport": {
+     "width": 393,
+     "height": 659
+    },
+    "deviceScaleFactor": 3,
+    "hasTouch": true
+   }
+  },
+  {
+   "name": "iPhone 15",
+   "engine": "webkit",
+   "value": {
+    "userAgent": "UA-iphone",
+    "viewport": {
+     "width": 393,
+     "height": 659
+    },
+    "deviceScaleFactor": 3,
+    "hasTouch": true,
+    "isMobile": true
+   }
+  },
+  {
+   "name": "iphone 15",
+   "engine": "chromium",
+   "value": {
+    "userAgent": "UA-iphone",
+    "viewport": {
+     "width": 393,
+     "height": 659
+    },
+    "deviceScaleFactor": 3,
+    "hasTouch": true,
+    "isMobile": true
+   }
+  },
+  {
+   "name": "iphone 15",
+   "engine": "firefox",
+   "value": {
+    "userAgent": "UA-iphone",
+    "viewport": {
+     "width": 393,
+     "height": 659
+    },
+    "deviceScaleFactor": 3,
+    "hasTouch": true
+   }
+  },
+  {
+   "name": "iphone 15",
+   "engine": "webkit",
+   "value": {
+    "userAgent": "UA-iphone",
+    "viewport": {
+     "width": 393,
+     "height": 659
+    },
+    "deviceScaleFactor": 3,
+    "hasTouch": true,
+    "isMobile": true
+   }
+  },
+  {
+   "name": " Pixel 7 ",
+   "engine": "chromium",
+   "value": {
+    "userAgent": "UA-pixel",
+    "viewport": {
+     "width": 412,
+     "height": 839
+    },
+    "deviceScaleFactor": 2.625,
+    "hasTouch": true,
+    "isMobile": true
+   }
+  },
+  {
+   "name": " Pixel 7 ",
+   "engine": "firefox",
+   "value": {
+    "userAgent": "UA-pixel",
+    "viewport": {
+     "width": 412,
+     "height": 839
+    },
+    "deviceScaleFactor": 2.625,
+    "hasTouch": true
+   }
+  },
+  {
+   "name": " Pixel 7 ",
+   "engine": "webkit",
+   "value": {
+    "userAgent": "UA-pixel",
+    "viewport": {
+     "width": 412,
+     "height": 839
+    },
+    "deviceScaleFactor": 2.625,
+    "hasTouch": true,
+    "isMobile": true
+   }
+  },
+  {
+   "name": "iPhone 99",
+   "engine": "chromium",
+   "error": "AGENT_EYE_DEVICE=\"iPhone 99\" is not a known Playwright device. Similar: iPhone 15, iPhone 15 Pro."
+  },
+  {
+   "name": "iPhone 99",
+   "engine": "firefox",
+   "error": "AGENT_EYE_DEVICE=\"iPhone 99\" is not a known Playwright device. Similar: iPhone 15, iPhone 15 Pro."
+  },
+  {
+   "name": "iPhone 99",
+   "engine": "webkit",
+   "error": "AGENT_EYE_DEVICE=\"iPhone 99\" is not a known Playwright device. Similar: iPhone 15, iPhone 15 Pro."
+  },
+  {
+   "name": "Nokia 3310",
+   "engine": "chromium",
+   "error": "AGENT_EYE_DEVICE=\"Nokia 3310\" is not a known Playwright device. See https://playwright.dev/docs/emulation#devices."
+  },
+  {
+   "name": "Nokia 3310",
+   "engine": "firefox",
+   "error": "AGENT_EYE_DEVICE=\"Nokia 3310\" is not a known Playwright device. See https://playwright.dev/docs/emulation#devices."
+  },
+  {
+   "name": "Nokia 3310",
+   "engine": "webkit",
+   "error": "AGENT_EYE_DEVICE=\"Nokia 3310\" is not a known Playwright device. See https://playwright.dev/docs/emulation#devices."
+  },
+  {
+   "name": "pixel",
+   "engine": "chromium",
+   "error": "AGENT_EYE_DEVICE=\"pixel\" is not a known Playwright device. Similar: Pixel 7."
+  },
+  {
+   "name": "pixel",
+   "engine": "firefox",
+   "error": "AGENT_EYE_DEVICE=\"pixel\" is not a known Playwright device. Similar: Pixel 7."
+  },
+  {
+   "name": "pixel",
+   "engine": "webkit",
+   "error": "AGENT_EYE_DEVICE=\"pixel\" is not a known Playwright device. Similar: Pixel 7."
+  },
+  {
+   "name": "desktop chrome",
+   "engine": "chromium",
+   "value": {
+    "userAgent": "UA-desktop",
+    "viewport": {
+     "width": 1280,
+     "height": 720
+    },
+    "deviceScaleFactor": 1,
+    "hasTouch": false,
+    "isMobile": false
+   }
+  },
+  {
+   "name": "desktop chrome",
+   "engine": "firefox",
+   "value": {
+    "userAgent": "UA-desktop",
+    "viewport": {
+     "width": 1280,
+     "height": 720
+    },
+    "deviceScaleFactor": 1,
+    "hasTouch": false
+   }
+  },
+  {
+   "name": "desktop chrome",
+   "engine": "webkit",
+   "value": {
+    "userAgent": "UA-desktop",
+    "viewport": {
+     "width": 1280,
+     "height": 720
+    },
+    "deviceScaleFactor": 1,
+    "hasTouch": false,
+    "isMobile": false
+   }
+  }
+ ],
+ "hints": [
+  {
+   "engine": "chromium",
+   "message": "browserType.launch: Executable doesn't exist at /x/chrome",
+   "expect": "The chromium browser is not installed. Run: npx playwright install chromium"
+  },
+  {
+   "engine": "chromium",
+   "message": "browserType.launchPersistentContext: install the browsers",
+   "expect": "The chromium browser is not installed. Run: npx playwright install chromium"
+  },
+  {
+   "engine": "chromium",
+   "message": "Target closed",
+   "expect": null
+  },
+  {
+   "engine": "chromium",
+   "message": "boom",
+   "expect": null
+  },
+  {
+   "engine": "firefox",
+   "message": "browserType.launch: Executable doesn't exist at /x/chrome",
+   "expect": "The firefox browser is not installed. Run: npx playwright install firefox"
+  },
+  {
+   "engine": "firefox",
+   "message": "browserType.launchPersistentContext: install the browsers",
+   "expect": "The firefox browser is not installed. Run: npx playwright install firefox"
+  },
+  {
+   "engine": "firefox",
+   "message": "Target closed",
+   "expect": null
+  },
+  {
+   "engine": "firefox",
+   "message": "boom",
+   "expect": null
+  },
+  {
+   "engine": "webkit",
+   "message": "browserType.launch: Executable doesn't exist at /x/chrome",
+   "expect": "The webkit browser is not installed. Run: npx playwright install webkit"
+  },
+  {
+   "engine": "webkit",
+   "message": "browserType.launchPersistentContext: install the browsers",
+   "expect": "The webkit browser is not installed. Run: npx playwright install webkit"
+  },
+  {
+   "engine": "webkit",
+   "message": "Target closed",
+   "expect": null
+  },
+  {
+   "engine": "webkit",
+   "message": "boom",
+   "expect": null
+  }
+ ],
+ "cdpUrls": [
+  {
+   "input": null,
+   "value": null
+  },
+  {
+   "input": "",
+   "value": null
+  },
+  {
+   "input": "   ",
+   "value": null
+  },
+  {
+   "input": "http://127.0.0.1:9222",
+   "value": "http://127.0.0.1:9222"
+  },
+  {
+   "input": "http://localhost:9222",
+   "value": "http://localhost:9222"
+  },
+  {
+   "input": "https://localhost:9222",
+   "value": "https://localhost:9222"
+  },
+  {
+   "input": "http://[::1]:9222",
+   "value": "http://[::1]:9222"
+  },
+  {
+   "input": "ws://127.0.0.1:9222/devtools/browser/abc",
+   "value": "ws://127.0.0.1:9222/devtools/browser/abc"
+  },
+  {
+   "input": "http://LOCALHOST:9222",
+   "value": "http://LOCALHOST:9222"
+  },
+  {
+   "input": "http://192.168.1.10:9222",
+   "error": "AGENT_EYE_CDP_URL must point at this machine (localhost, 127.0.0.1 or [::1]); got host \"192.168.1.10\". A remote debugging endpoint hands over complete control of that browser."
+  },
+  {
+   "input": "http://example.com:9222",
+   "error": "AGENT_EYE_CDP_URL must point at this machine (localhost, 127.0.0.1 or [::1]); got host \"example.com\". A remote debugging endpoint hands over complete control of that browser."
+  },
+  {
+   "input": "http://10.0.0.5:9222",
+   "error": "AGENT_EYE_CDP_URL must point at this machine (localhost, 127.0.0.1 or [::1]); got host \"10.0.0.5\". A remote debugging endpoint hands over complete control of that browser."
+  },
+  {
+   "input": "http://169.254.169.254/",
+   "error": "AGENT_EYE_CDP_URL must point at this machine (localhost, 127.0.0.1 or [::1]); got host \"169.254.169.254\". A remote debugging endpoint hands over complete control of that browser."
+  },
+  {
+   "input": "http://0.0.0.0:9222",
+   "error": "AGENT_EYE_CDP_URL must point at this machine (localhost, 127.0.0.1 or [::1]); got host \"0.0.0.0\". A remote debugging endpoint hands over complete control of that browser."
+  },
+  {
+   "input": "http://127.0.0.1.evil.com:9222",
+   "error": "AGENT_EYE_CDP_URL must point at this machine (localhost, 127.0.0.1 or [::1]); got host \"127.0.0.1.evil.com\". A remote debugging endpoint hands over complete control of that browser."
+  },
+  {
+   "input": "http://localhost.evil.com:9222",
+   "error": "AGENT_EYE_CDP_URL must point at this machine (localhost, 127.0.0.1 or [::1]); got host \"localhost.evil.com\". A remote debugging endpoint hands over complete control of that browser."
+  },
+  {
+   "input": "http://user@evil.com:9222",
+   "error": "AGENT_EYE_CDP_URL must point at this machine (localhost, 127.0.0.1 or [::1]); got host \"evil.com\". A remote debugging endpoint hands over complete control of that browser."
+  },
+  {
+   "input": "not a url",
+   "error": "AGENT_EYE_CDP_URL=\"not a url\" is not a valid URL. Example: http://127.0.0.1:9222"
+  },
+  {
+   "input": "file:///etc/passwd",
+   "error": "AGENT_EYE_CDP_URL must be http(s):// or ws(s)://, got \"file:\"."
+  },
+  {
+   "input": "javascript:alert(1)",
+   "error": "AGENT_EYE_CDP_URL must be http(s):// or ws(s)://, got \"javascript:\"."
+  }
+ ],
+ "incompat": [
+  {
+   "env": {},
+   "channel": null,
+   "expect": null
+  },
+  {
+   "env": {
+    "AGENT_EYE_BROWSER": "chromium",
+    "AGENT_EYE_VIEWPORT": "1000x700"
+   },
+   "channel": null,
+   "expect": null
+  },
+  {
+   "env": {
+    "AGENT_EYE_BROWSER": "firefox"
+   },
+   "channel": null,
+   "expect": "AGENT_EYE_BROWSER=firefox cannot be combined with AGENT_EYE_CDP_URL (CDP is Chromium-only)."
+  },
+  {
+   "env": {},
+   "channel": "chrome",
+   "expect": "AGENT_EYE_BROWSER_CHANNEL cannot be combined with AGENT_EYE_CDP_URL (the browser is already running)."
+  },
+  {
+   "env": {
+    "AGENT_EYE_DEVICE": "iPhone 15"
+   },
+   "channel": null,
+   "expect": "AGENT_EYE_DEVICE cannot be combined with AGENT_EYE_CDP_URL (device emulation needs a context Agent Eye creates); use AGENT_EYE_VIEWPORT."
+  },
+  {
+   "env": {
+    "AGENT_EYE_DEVICE": "   "
+   },
+   "channel": null,
+   "expect": null
+  },
+  {
+   "env": {
+    "AGENT_EYE_BROWSER": " WebKit "
+   },
+   "channel": null,
+   "expect": "AGENT_EYE_BROWSER=webkit cannot be combined with AGENT_EYE_CDP_URL (CDP is Chromium-only)."
+  }
+ ]
+}

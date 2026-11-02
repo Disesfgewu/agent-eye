@@ -78,7 +78,7 @@ dedicated thread because Playwright's sync API is thread-affine). `usage_report`
 
 ## Parity with the Node MCP server
 
-The Python package is a smaller port. The **security guards and project detection are kept in
+The Python package is now a full port of the tool set. The **security guards and project detection are kept in
 lock-step** with the Node server: both implementations run the same fixture files
 (`packages/mcp-server/tests/fixtures/command-cases.json`, `detect-cases.json`) in CI, so a rule
 fixed on one side and missing on the other fails the build.
@@ -93,7 +93,7 @@ fixed on one side and missing on the other fails the build.
 | `verify_page`, `batch` (all steps approved before any runs) | yes | yes |
 | Token usage ledger + `usage_report` (estimator golden-tested against the Node one) | yes (MCP server) | yes |
 | `set_storage` / `upload_file` (write-only, workspace-confined, secrets refused), `perf_summary`, screenshot `selector` / `if_changed` | yes (guards and formatters golden-tested against the Node ones) | yes |
-| Firefox / WebKit / device emulation, CDP attach | **no** | yes |
+| Firefox / WebKit (`AGENT_EYE_BROWSER`), device emulation (`AGENT_EYE_DEVICE`, `AGENT_EYE_VIEWPORT`), attach to your own Chromium (`AGENT_EYE_CDP_URL`, fenced: only the tabs it opens) | yes (rules golden-tested against the Node ones; real Firefox/WebKit/CDP tests) | yes |
 
 ## Tests
 

@@ -94,9 +94,9 @@ jobs:
       matrix:
         # Every mcp release requires Python >= 3.10 (so 3.9 runs without it), and 2.x renamed FastMCP: test both majors.
         include:
-          - { python: "3.9", mcp: "none" }
-          - { python: "3.12", mcp: "mcp<2" }
-          - { python: "3.12", mcp: "mcp" }
+          - { python: "3.9", mcp: "none", engines: "chromium" }
+          - { python: "3.12", mcp: "mcp<2", engines: "chromium" }
+          - { python: "3.12", mcp: "mcp", engines: "chromium firefox webkit" }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -105,13 +105,14 @@ jobs:
       - run: pip install playwright
       - if: matrix.mcp != 'none'
         run: pip install "${{ matrix.mcp }}"
-      - run: python -m playwright install --with-deps chromium
+      - run: python -m playwright install --with-deps ${{ matrix.engines }}
       - name: Conformance + dev-server + real-browser smoke tests
         working-directory: packages/python
         env:
           PYTHONPATH: src
           AGENT_EYE_REQUIRE_PLAYWRIGHT: "1"
           AGENT_EYE_REQUIRE_MCP: ${{ matrix.mcp != 'none' && '1' || '0' }}
+          AGENT_EYE_REQUIRE_ENGINES: ${{ matrix.engines != 'chromium' && 'firefox,webkit' || '' }}
         run: python -m unittest discover -s tests -v
 
   windows:
