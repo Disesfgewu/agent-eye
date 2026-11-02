@@ -12,6 +12,7 @@ import { log } from "../logger.js";
 import { registerActionTools } from "./register-actions.js";
 import { registerCompositeTools } from "./register-composite.js";
 import { registerProjectTools } from "./register-project.js";
+import { ScreenshotMemory } from "../browser/screenshot-memory.js";
 import { extractPorts, portOpen, waitForPort } from "../devserver/ready.js";
 import {
   diffSnapshots,
@@ -71,6 +72,7 @@ export function framedWebData(source: string, body: string): string {
 
 export function registerTools(ctx: ToolContext): void {
   const { server, policy, gate, artifacts, browser, devServers } = ctx;
+  const shots = new ScreenshotMemory();
 
   // ---- browser_navigate ----------------------------------------------------
   server.registerTool(
@@ -246,14 +248,26 @@ export function registerTools(ctx: ToolContext): void {
       inputSchema: {
         fullPage: z.boolean().optional().describe("Capture the full scrollable page instead of just the viewport."),
         selector: z.string().optional().describe("Crop to one element (cheaper)."),
+        ifChanged: z.boolean().optional().describe("If identical to the previous screenshot of this page/scope, reply 'unchanged' without the image."),
       },
     },
-    async ({ fullPage, selector }): Promise<ToolResult> => {
+    async ({ fullPage, selector, ifChanged }): Promise<ToolResult> => {
       const gateResult = await gate.check("observe", { tool: "browser_screenshot", title: "Take screenshot", detail: "" });
       if (!gateResult.ok) return errorResult(gateResult.message);
       try {
-        const buffer = await browser.screenshot(fullPage === true, selector);
+        const buffer = await browser.screenshot(fullPage === true, selector, ifChanged === true);
+        const shotKey = `${browser.currentUrl() ?? ""}|${fullPage === true ? "full" : "view"}|${selector ?? ""}`;
+        if (ifChanged === true) {
+          const same = shots.unchanged(shotKey, buffer);
+          if (same) {
+            const ago = Math.max(0, Math.round((Date.now() - same.at) / 1000));
+            shots.touch(shotKey);
+            artifacts.record({ type: "tool_call", tool: "browser_screenshot", title: "Screenshot unchanged", detail: browser.currentUrl(), status: "ok" });
+            return text(`Screenshot unchanged since ${ago}s ago (identical to .agent-artifacts/${same.rel}); image not resent.`);
+          }
+        }
         const rel = artifacts.saveScreenshot(buffer, "page");
+        shots.remember(shotKey, buffer, rel);
         artifacts.record({ type: "tool_call", tool: "browser_screenshot", title: "Captured screenshot", detail: browser.currentUrl(), screenshot: rel, status: "ok" });
         return {
           content: [

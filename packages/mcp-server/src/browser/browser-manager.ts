@@ -688,15 +688,18 @@ export class BrowserManager {
     this.lastSnapshot = { key, text };
   }
 
-  async screenshot(fullPage: boolean, selector?: string): Promise<Buffer> {
+  async screenshot(fullPage: boolean, selector?: string, stable = false): Promise<Buffer> {
     const page = await this.ensurePage();
+    // `stable` freezes animations and the text caret for the capture only, so an unchanged static
+    // page produces identical bytes (used by browser_screenshot ifChanged).
+    const steady = stable ? ({ animations: "disabled", caret: "hide" } as const) : {};
     // An element screenshot is smaller in pixels, hence fewer image tokens.
     if (selector) {
-      return await this.locate(page, selector).first().screenshot({ type: "png", scale: "css", timeout: 10_000 });
+      return await this.locate(page, selector).first().screenshot({ type: "png", scale: "css", timeout: 10_000, ...steady });
     }
     // scale:"css" keeps the screenshot at logical 1280x800 regardless of the
     // 2x deviceScaleFactor, so coordinates read off it match browser_click_at.
-    return await page.screenshot({ fullPage, type: "png", scale: "css" });
+    return await page.screenshot({ fullPage, type: "png", scale: "css", ...steady });
   }
 
   /** Arbitrary JS execution — only reachable when policy permits highRisk. */

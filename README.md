@@ -288,7 +288,7 @@ there yourself (project) / to `~/.claude/skills/` (all projects).
 | `browser_click(target)` | interact | Click by ref or Playwright selector. |
 | `browser_click_at(x, y)` | interact | Click at viewport coordinates — for canvas UIs (Flutter web, WebGL, games) with no selectable DOM. |
 | `browser_type(target, text, submit?)` | interact / sideEffect | Fill an input; `submit` presses Enter (side-effecting). |
-| `browser_screenshot(fullPage?, selector?)` | observe | PNG saved to the timeline and returned (`selector` crops to one element = fewer tokens). |
+| `browser_screenshot(fullPage?, selector?, ifChanged?)` | observe | PNG saved to the timeline and returned (`selector` crops to one element = fewer tokens). `ifChanged` captures with animations/caret frozen and, if the bytes equal the previous shot of the same page/scope, replies with one line (~29 tokens) instead of resending the image (~1.4k). A page with a live clock/video/animation always counts as changed. |
 | `browser_get_console_logs(types?, limit?, includeHistory?)` | observe | Console messages + uncaught errors of the **current page load** (reset on navigate/reload), duplicates collapsed `×N`. |
 | `browser_get_network_requests(failedOnly?, urlContains?, includeStatic?, includeHeaders?, limit?, includeHistory?)` | observe | One line per request (`GET 404 fetch /api/x`) for the current page load; static assets hidden unless failed; headers only on request, with **sensitive headers redacted**. |
 | `browser_show_status(message)` | interact | Live narration banner in the window so the watching user can follow the agent's work. |
