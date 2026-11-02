@@ -40,7 +40,10 @@ const webPort = web.address().port;
 // context and every "does not touch the user's tabs" check below would pass trivially.)
 const cdpPort = await freePort();
 const profile = fs.mkdtempSync(path.join(os.tmpdir(), "ae-cdp-profile-"));
-const proc = spawn(chromium.executablePath(), [
+// AGENT_EYE_CDP_BROWSER_EXE points the same suite at a real Google Chrome / Microsoft Edge instead of Playwright's Chromium (Issue #66)
+const browserExe = process.env.AGENT_EYE_CDP_BROWSER_EXE || chromium.executablePath();
+console.log(`CDP target: ${browserExe}`);
+const proc = spawn(browserExe, [
   "--headless=new", `--remote-debugging-port=${cdpPort}`, `--user-data-dir=${profile}`,
   "--no-first-run", "--no-default-browser-check", "--no-sandbox", "about:blank",
 ], { stdio: "ignore" });
