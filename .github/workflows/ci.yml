@@ -19,6 +19,8 @@ jobs:
         run: npm run typecheck
       - name: Build (extension + bundled MCP server)
         run: npm run build
+      - name: Unit tests
+        run: npm test
       - name: Install Chromium + system deps (Linux)
         run: npx --yes playwright install --with-deps chromium
       - name: E2E browser smoke test (drives a real headless browser on Linux)
