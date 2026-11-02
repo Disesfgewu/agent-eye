@@ -76,6 +76,22 @@
           "default": "",
           "description": "Browser channel for Playwright. Empty uses the bundled Chromium (run 'npx playwright install chromium'). 'chrome'/'msedge' use your installed browser."
         },
+        "agentEye.browser": {
+          "type": "string",
+          "enum": ["chromium", "firefox", "webkit"],
+          "default": "chromium",
+          "description": "Browser engine the agent drives. Firefox and WebKit must be installed too: run 'Agent Eye: Install Browser Runtime' and tick them. (browserChannel only applies to chromium.)"
+        },
+        "agentEye.device": {
+          "type": "string",
+          "default": "",
+          "description": "Emulate a Playwright device, e.g. 'iPhone 15' or 'Pixel 7' (viewport, user agent, touch). Empty = desktop."
+        },
+        "agentEye.viewport": {
+          "type": "string",
+          "default": "",
+          "description": "Viewport as WIDTHxHEIGHT, e.g. 1280x800 (200-3840 x 200-2400). Empty = 1280x800 or the device's viewport."
+        },
         "agentEye.logLevel": {
           "type": "string",
           "enum": ["debug", "info", "warn", "error"],
@@ -103,6 +119,7 @@
   "scripts": {
     "build": "node esbuild.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test",
     "clean": "rimraf dist",
     "vscode:prepublish": "node esbuild.mjs --production"
   },

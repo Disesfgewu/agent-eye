@@ -26,6 +26,13 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.commands.registerCommand("agentEye.openPolicy", () => openPolicy()),
     vscode.commands.registerCommand("agentEye.clearArtifacts", () => panel.clear()),
     vscode.commands.registerCommand("agentEye.installRuntime", () => installRuntime(context)),
+    // Browser engine / device / viewport reach the server as env: re-register on change and offer to install a missing engine.
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (["browser", "device", "viewport", "browserChannel"].some((k) => e.affectsConfiguration(`agentEye.${k}`))) {
+        void autoInstallIntegrations(context);
+        if (e.affectsConfiguration("agentEye.browser")) void ensureRuntimePrompt(context);
+      }
+    }),
     vscode.commands.registerCommand("agentEye.reinstallIntegrations", () => reinstallIntegrations(context))
   );
 
