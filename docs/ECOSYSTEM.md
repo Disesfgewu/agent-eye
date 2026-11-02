@@ -82,10 +82,26 @@ Agent Eye is **not** trying to be the broadest automation server — Playwright 
 *safe, watchable frontend debugging loops* (run the dev server, watch the agent work, enforce what it may do,
 measure what it costs). Suggested priorities, by value for that lane:
 
-1. **Finish the cheap wins** — ~~`depth`/`find`~~ (#36), ~~`--if-changed` screenshots~~ (#37) done; write-large-output-to-file still open.
-2. **Debugging depth** — a lab perf summary exists (#39); Lighthouse scores, raw traces and source-mapped console errors (DevTools MCP's strength) are still the most relevant gaps for a *debugging* tool.
-3. **Careful, opt-in capabilities** — file upload and storage writes shipped (#38) behind the `sideEffect` category with workspace confinement and no read-back; CDP attach (#40) still needs a threat model first.
+1. **Finish the cheap wins** — ~~`depth`/`find`~~ (#36), ~~`--if-changed` screenshots~~ (#37) done; write-large-output-to-file is open (#60).
+2. **Debugging depth** — a lab perf summary exists (#39); Lighthouse scores, raw traces and heap snapshots (#59) and source-mapped console errors (#61), DevTools MCP's strength, are still the most relevant gaps for a *debugging* tool.
+3. **Careful, opt-in capabilities** — file upload, storage writes (#38) and CDP attach (#40) shipped behind the `sideEffect` category / an explicit opt-in, with workspace confinement, no read-back and the "only tabs it opens" fence. Next in this lane: network mocking (#63), drag and drop (#65).
 4. **Re-measure quarterly** with `usage_report` on a fixed set of tasks, and update §2.
+
+### Open backlog (each item is a GitHub issue)
+
+| Area | Issue | One line |
+|---|---|---|
+| Debugging depth | [#59](https://github.com/Disesfgewu/agent-eye/issues/59) | Lighthouse score, raw trace, heap snapshot as an opt-in tier |
+| Debugging depth | [#61](https://github.com/Disesfgewu/agent-eye/issues/61) | Source-mapped console errors / stack traces |
+| Tokens | [#60](https://github.com/Disesfgewu/agent-eye/issues/60) | Write large tool output to a file; return summary + path |
+| Capability | [#62](https://github.com/Disesfgewu/agent-eye/issues/62) | List / switch / close tabs the agent opened |
+| Capability | [#63](https://github.com/Disesfgewu/agent-eye/issues/63) | Network mocking / request routing (allowlisted hosts only) |
+| Capability | [#64](https://github.com/Disesfgewu/agent-eye/issues/64) | PDF export, recording, Playwright test generation |
+| Capability | [#65](https://github.com/Disesfgewu/agent-eye/issues/65) | Drag and drop (and drag-based file upload) |
+| Verification | [#66](https://github.com/Disesfgewu/agent-eye/issues/66) | macOS runners; real Chrome / Edge (channels and CDP) |
+| Verification | [#67](https://github.com/Disesfgewu/agent-eye/issues/67) | Weekly run against the latest Playwright; move the extension's pin |
+| Python | [#68](https://github.com/Disesfgewu/agent-eye/issues/68) | Dev-server process reaper (no orphaned servers) |
+| Windows | [#69](https://github.com/Disesfgewu/agent-eye/issues/69) | `"`, `%`, `^` in arguments of `.cmd` shims (npm, pnpm, yarn, vite) |
 
 ## Sources
 
