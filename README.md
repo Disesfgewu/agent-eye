@@ -300,6 +300,8 @@ there yourself (project) / to `~/.claude/skills/` (all projects).
 | `stop_dev_server(id)` | execute | Terminate an owned process tree. |
 | `browser_press_key(key)` | interact / sideEffect (Enter) | Press a key or combo (`Escape`, `Tab`, `Control+A`). |
 | `browser_hover(target)` | interact | Hover by ref/selector (menus, tooltips). |
+| `browser_set_storage(cookies?, localStorage?, sessionStorage?, clear?)` | sideEffect | Set (or clear) cookies / web storage of the current allowlisted page, e.g. a test session token. **Write-only**: values are never echoed back, logged or put on the timeline (names only). Cookie values may not carry attributes (`;`), sizes are capped. Reload to apply. `AGENT_EYE_TOOLSET=core` omits it. |
+| `browser_upload_file(target, paths)` | sideEffect | Attach workspace files to an `<input type=file>`. Only regular files **inside the workspace** (symlinks resolved), max 10 files / 25 MB each / 100 MB total; secrets and tooling state (`.env*`, keys/certs, `.npmrc`, `credentials*`, `.git/`, `.ssh/`, `.agent-eye/`, ...) are refused. Only on allowlisted pages. `AGENT_EYE_TOOLSET=core` omits it. |
 | `browser_select_option(target, values)` | interact | Choose option(s) in a `<select>`. |
 | `browser_wait_for(text?, textGone?, ms?, timeoutMs?)` | observe | Wait for text to appear/disappear (bounded; max 30 s). |
 | `browser_history(action)` | interact | `back` / `forward` / `reload`. Back/forward landing outside the navigation allowlist is reverted to a blank page. |
@@ -347,6 +349,11 @@ detail in [`plan.v1.md` §7](plan.v1.md).
   are treated as non-allowlisted (→ `highRisk`, denied by default). Limitation: this
   cannot stop an agent that can also edit project files (e.g. rewrite `package.json`
   scripts) and then run them.
+- **State tools** (`browser_set_storage`, `browser_upload_file`): write-only, allowlisted pages only,
+  names (never values) in logs. Honest limit on uploads: pages are not restricted in where *they* send
+  data, so anything you let the agent attach can be forwarded by that page; the workspace confinement
+  and the secret-file deny list are defense in depth, and `sideEffect: ask|deny` in the policy turns
+  both tools into a prompt or off.
 - **Compiled-language toolchains** (`go`, `cargo`, `trunk`, `dx`, `air`, `templ`,
   `wails`, `dotnet`, `mvn`/`mvnw`, `gradle`/`gradlew`, `mix`) are restricted to their
   dev-loop subcommands (`go run`, `cargo run|watch|leptos watch`, `trunk serve`,

@@ -12,6 +12,7 @@ import { log } from "../logger.js";
 import { registerActionTools } from "./register-actions.js";
 import { registerCompositeTools } from "./register-composite.js";
 import { registerProjectTools } from "./register-project.js";
+import { registerStateTools } from "./register-state.js";
 import { ScreenshotMemory } from "../browser/screenshot-memory.js";
 import { extractPorts, portOpen, waitForPort } from "../devserver/ready.js";
 import {
@@ -532,6 +533,7 @@ export function registerTools(ctx: ToolContext): void {
   registerActionTools(ctx);
   registerCompositeTools(ctx);
   registerProjectTools(ctx);
+  registerStateTools(ctx);
 
   log.info("Registered Agent Eye tools");
 }
