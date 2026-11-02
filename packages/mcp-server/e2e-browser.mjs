@@ -127,7 +127,11 @@ const hasImage = (r) => (r.content || []).some((x) => x.type === "image");
 const shot1 = await call("browser_screenshot", { ifChanged: true });
 const shot2 = await call("browser_screenshot", { ifChanged: true });
 check("screenshot ifChanged: first shot returns the image", hasImage(shot1));
-check("screenshot ifChanged: identical page -> one line, no image", !hasImage(shot2) && /unchanged/i.test(textOf(shot2)), textOf(shot2));
+const imgOf = (r) => Buffer.from((r.content || []).find((x) => x.type === "image")?.data ?? "", "base64");
+const [b1, b2] = [imgOf(shot1), imgOf(shot2)];
+const differing = b1.length === b2.length ? [...b1].filter((v, i) => v !== b2[i]).length : -1;
+check("screenshot ifChanged: identical page -> one line, no image", !hasImage(shot2) && /unchanged/i.test(textOf(shot2)),
+  `${textOf(shot2)} | two captures of a static page: ${b1.length} vs ${b2.length} bytes, ${differing < 0 ? "different sizes" : `${differing} differing bytes`}`);
 await call("browser_type", { target: "#i", text: "changed-input" });
 check("screenshot ifChanged: after a visible change the image is returned again", hasImage(await call("browser_screenshot", { ifChanged: true })));
 check("screenshot without ifChanged always returns the image", hasImage(await call("browser_screenshot", {})));

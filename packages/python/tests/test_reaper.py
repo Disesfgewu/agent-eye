@@ -58,7 +58,8 @@ class ProcessStart(unittest.TestCase):
             a = process_start(p.pid)
             self.assertTrue(a)
             self.assertEqual(a, process_start(p.pid))
-            self.assertNotEqual(a, process_start(os.getpid()), "different processes have different start tokens")
+            if sys.platform != "darwin":  # macOS reports the start time with 1-second resolution (`ps -o lstart`)
+                self.assertNotEqual(a, process_start(os.getpid()), "different processes have different start tokens")
         finally:
             p.kill()
             p.wait()
