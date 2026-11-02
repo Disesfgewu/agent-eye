@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- **Token ledger + `usage_report` tool.** Every tool call's argument/result size is estimated and aggregated per tool; persisted to `.agent-artifacts/usage.json` and `usage-history.jsonl`. Includes the fixed tool-definition overhead. Adds unit tests (`npm test`).
+
 ## 0.1.3
 
 - **Strict per-instance process ownership.** On open, the server discovers the

@@ -11,6 +11,9 @@ import { BrowserManager } from "./browser/browser-manager.js";
 import { DevServerManager } from "./devserver/dev-server-manager.js";
 import { ProcessReaper } from "./reaper.js";
 import { registerTools } from "./tools/register.js";
+import { registerUsageTool } from "./tools/usage-tool.js";
+import { UsageLedger } from "./usage/ledger.js";
+import { instrumentTools } from "./usage/instrument.js";
 
 const SERVER_NAME = "agent-eye";
 const SERVER_VERSION = "0.1.0";
@@ -54,6 +57,10 @@ async function main(): Promise<void> {
   );
   const devServers = new DevServerManager(reaper);
 
+  // Measure every tool registered from here on (estimated token ledger).
+  const usage = new UsageLedger(config.artifactsDir);
+  instrumentTools(server, usage);
+
   registerTools({
     server,
     policy,
@@ -64,6 +71,7 @@ async function main(): Promise<void> {
     workspaceRoot: config.workspaceRoot,
     ownsGlobals,
   });
+  registerUsageTool(server, gate, usage);
 
   artifacts.record({
     type: "info",
@@ -86,6 +94,7 @@ async function main(): Promise<void> {
       await devServers.stopAll();
       await browser.close();
     } finally {
+      usage.flush();
       reaper.dispose();
       process.exit(0);
     }
