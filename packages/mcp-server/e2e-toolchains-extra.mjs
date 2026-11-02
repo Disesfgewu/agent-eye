@@ -162,7 +162,12 @@ end
       check("trunk: detect_project suggests `trunk serve` for a wasm crate with index.html", /command="trunk" args=\["serve"\]|Rust/.test(det), det);
       const r = await startUntilReady("tr", "trunk", ["serve", "--port", String(port), "--address", "127.0.0.1", "--no-autoreload"], "tr-ok", port, 10);
       check(`trunk: trunk serve -> Ready (${r.calls} call(s))`, r.ready, r.text);
-      check("trunk: really serving the page", /trunk-ok/.test(await fetchText(port, "trunk-ok")));
+      const page = await fetchText(port, "trunk-ok");
+      const logs = textOf(await call("get_dev_server_logs", { id: "tr", limit: 60 }));
+      check("trunk: really serving the page", /trunk-ok/.test(page), `served:
+${page.slice(0, 600)}
+--- trunk logs:
+${logs.slice(-2500)}`);
       await call("stop_dev_server", { id: "tr" });
       check("trunk: trunk build is refused", (await call("start_dev_server", { id: "tx", command: "trunk", args: ["build"], cwd: "tr-ok" })).isError === true);
     },
