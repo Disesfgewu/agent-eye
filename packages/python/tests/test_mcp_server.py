@@ -35,7 +35,7 @@ def text_of(result) -> str:
     return "\n".join(c.text for c in result.content if getattr(c, "type", "") == "text")
 
 
-@unittest.skipUnless(HAVE or os.environ.get("AGENT_EYE_REQUIRE_PLAYWRIGHT") == "1", "mcp + playwright not installed")
+@unittest.skipUnless(HAVE or os.environ.get("AGENT_EYE_REQUIRE_MCP") == "1", "mcp + playwright not installed (mcp needs Python >= 3.10)")
 class McpServer(unittest.TestCase):
     def test_tools_listed_and_a_verify_flow_is_measured(self):
         httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _Handler)

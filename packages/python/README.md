@@ -70,6 +70,8 @@ pip install "agent-eye[mcp]"
 agent-eye-mcp --workspace .
 ```
 
+The MCP server needs **Python 3.10+** (every `mcp` release does); the Python API itself supports 3.9.
+
 Exposes the same tools over MCP for any MCP-aware agent (`mcp` 1.x and 2.x are both supported; all tools run on one
 dedicated thread because Playwright's sync API is thread-affine). `usage_report` shows the estimated token cost per tool.
 
