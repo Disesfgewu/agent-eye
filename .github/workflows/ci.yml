@@ -26,6 +26,9 @@ jobs:
       - name: E2E browser smoke test (drives a real headless browser on Linux)
         working-directory: packages/mcp-server
         run: node e2e-browser.mjs
+      - name: E2E CDP attach (the agent must not touch a browser's other tabs)
+        working-directory: packages/mcp-server
+        run: node e2e-cdp.mjs
       - name: Package the .vsix
         working-directory: packages/vscode-extension
         run: npx --yes @vscode/vsce package --no-dependencies --allow-missing-repository
