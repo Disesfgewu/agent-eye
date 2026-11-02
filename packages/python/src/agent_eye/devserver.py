@@ -10,6 +10,8 @@ from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 
+from .win_args import quote_win_arg, windows_unsafe_arg
+
 IS_WINDOWS = sys.platform == "win32"
 LOG_CAPACITY = 1000
 
@@ -37,7 +39,12 @@ class DevServerManager:
         # PYTHONUNBUFFERED: Python dev servers otherwise buffer stdout when piped, hiding "listening on ..." lines.
         env = {**os.environ, "FORCE_COLOR": "0", "BROWSER": "none", "PYTHONUNBUFFERED": "1"}
         if IS_WINDOWS:
-            line = subprocess.list2cmdline([command, *args])
+            # Defense in depth: the guard already refuses these (Issue #27), but this module must not rely on it.
+            for a in [command, *args]:
+                unsafe = windows_unsafe_arg(a)
+                if unsafe:
+                    raise RuntimeError(f"Refusing to start: {unsafe}.")
+            line = " ".join([command, *(quote_win_arg(a) for a in args)])
             proc = subprocess.Popen(
                 line, cwd=cwd, env=env, shell=True,
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,

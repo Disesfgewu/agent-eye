@@ -2,6 +2,7 @@ import * as path from "node:path";
 import { isInside } from "../config.js";
 import { inlineCodeReason } from "./interpreter-guard.js";
 import { WRAPPER_COMMANDS, isPathEscape } from "./toolchains.js";
+import { windowsUnsafeArg } from "./win-args.js";
 
 /**
  * Dev-server launch scope enforcement (plan 7.2). Commands are passed as an
@@ -33,6 +34,12 @@ export function classifyCommand(
       verdict: "blocked",
       reason: "Command or arguments contain shell metacharacters; commands run without a shell and must be a plain executable + args.",
     };
+  }
+
+  // On Windows dev servers go through cmd.exe, which interprets " % ^ even in arguments (Issue #27).
+  if (process.platform === "win32") {
+    const unsafe = [trimmed, ...args].map(windowsUnsafeArg).find(Boolean);
+    if (unsafe) return { verdict: "blocked", reason: `Windows: ${unsafe}.` };
   }
 
   const resolvedCwd = path.resolve(workspaceRoot, cwd);

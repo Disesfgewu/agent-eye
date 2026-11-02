@@ -21,7 +21,9 @@ for (const [cmd, args, note] of CASES.safe) {
 
 for (const [cmd, args, note] of CASES.blocked) {
   test(`not allowlisted: ${cmd} ${args.join(" ")}${note ? ` (${note})` : ""}`, () => {
-    assert.equal(verdict(cmd, args), "outside");
-    assert.ok(inlineCodeReason(path.basename(cmd).replace(/\.(exe|cmd|bat|ps1)$/i, ""), args), "has a reason");
+    // On Windows an argument cmd.exe would interpret (" % ^) is refused outright: stricter, still not allowed.
+    const v = verdict(cmd, args);
+    assert.ok(v === "outside" || (process.platform === "win32" && v === "blocked"), `got ${v}`);
+    if (v === "outside") assert.ok(inlineCodeReason(path.basename(cmd).replace(/\.(exe|cmd|bat|ps1)$/i, ""), args), "has a reason");
   });
 }

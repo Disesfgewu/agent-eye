@@ -9,6 +9,7 @@ from urllib.parse import urlparse
 
 from .interpreter_guard import inline_code_reason
 from .toolchains import WRAPPER_COMMANDS, is_path_escape
+from .win_args import windows_unsafe_arg
 
 ALLOWED_SCHEMES = {"http", "https"}
 HARD_BLOCKED_HOSTS = {
@@ -99,6 +100,11 @@ def classify_command(command: str, args, cwd: str, workspace_root: str, command_
         return "blocked", "Empty command.", cwd
     if _SHELL_META.search(cmd) or any(re.search(r"[\n\r]", a) for a in args):
         return "blocked", "Command or arguments contain shell metacharacters.", cwd
+    # On Windows dev servers go through cmd.exe, which interprets " % ^ even in arguments (Issue #27).
+    if os.name == "nt":
+        unsafe = next((u for u in map(windows_unsafe_arg, [cmd, *args]) if u), None)
+        if unsafe:
+            return "blocked", f"Windows: {unsafe}.", cwd
     resolved = os.path.realpath(os.path.join(workspace_root, cwd or "."))
     root = os.path.realpath(workspace_root)
     if not _inside(root, resolved):

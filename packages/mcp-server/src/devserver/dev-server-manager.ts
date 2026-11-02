@@ -1,6 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import treeKill from "tree-kill";
 import { log } from "../logger.js";
+import { quoteWinArg, windowsUnsafeArg } from "../security/win-args.js";
 import { RingBuffer } from "../browser/ring-buffer.js";
 
 export interface DevServerLogLine {
@@ -125,7 +126,7 @@ const isWindows = process.platform === "win32";
  * Spawns without a shell on POSIX. On Windows, npm/pnpm/vite/etc. are `.cmd`
  * shims that recent Node refuses to spawn directly, so we invoke them through
  * cmd.exe with verbatim arguments. This is only safe because the command guard
- * has already rejected shell metacharacters in the command and args.
+ * has already rejected shell metacharacters in the command, and args are quoted (security/win-args.ts).
  */
 function spawnProcess(command: string, args: string[], cwd: string): ChildProcess {
   // PYTHONUNBUFFERED: Python dev servers otherwise buffer stdout when piped, hiding "listening on ..." lines.
@@ -133,19 +134,17 @@ function spawnProcess(command: string, args: string[], cwd: string): ChildProces
   if (!isWindows) {
     return spawn(command, args, { cwd, env, shell: false });
   }
+  // Defense in depth: the command guard already refuses these (Issue #27), but this module must not rely on it.
+  for (const a of [command, ...args]) {
+    const unsafe = windowsUnsafeArg(a);
+    if (unsafe) throw new Error(`Refusing to start: ${unsafe}.`);
+  }
   const line = [command, ...args.map(quoteWinArg)].join(" ");
   return spawn(process.env.ComSpec || "cmd.exe", ["/d", "/s", "/c", line], {
     cwd,
     env,
     windowsVerbatimArguments: true,
   });
-}
-
-function quoteWinArg(arg: string): string {
-  if (arg === "" || /[\s"]/.test(arg)) {
-    return `"${arg.replace(/"/g, '""')}"`;
-  }
-  return arg;
 }
 
 function killTree(pid: number): Promise<void> {
