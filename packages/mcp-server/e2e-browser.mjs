@@ -26,6 +26,14 @@ const server = http.createServer((req, res) => {
 <p id="out"></p>
 <script>setTimeout(()=>{const e=document.createElement('p');e.textContent='late-text';document.body.appendChild(e)},600)</script>`);
   }
+  if (req.url.startsWith("/state")) {
+    res.setHeader("content-type", "text/html");
+    return res.end(`<!doctype html><title>state</title><pre id="out"></pre><script>document.getElementById('out').textContent='cookie='+document.cookie+' ls='+(localStorage.getItem('tok')||'none')+' ss='+(sessionStorage.getItem('s')||'none');</script>`);
+  }
+  if (req.url.startsWith("/upload")) {
+    res.setHeader("content-type", "text/html");
+    return res.end(`<!doctype html><title>upload</title><input type="file" id="f" aria-label="file"><p id="o">nothing</p><script>f.onchange=()=>{o.textContent=Array.from(f.files).map(x=>x.name+':'+x.size).join(',')}</script>`);
+  }
   if (req.url.startsWith("/imds")) { res.setHeader("content-type", "text/html"); return res.end('<!doctype html><script>fetch("http://169.254.169.254/latest/meta-data/",{mode:"no-cors"}).catch(()=>{});</script>ssrf probe'); }
   res.setHeader("content-type", "text/html");
   res.end('<!doctype html><h1 id="t">agent-eye e2e ok</h1><button id="b">go</button><script>console.error("e2e-boom");fetch("/missing");</script>');
@@ -159,6 +167,29 @@ check("batch checks every step first: a denied step means NOTHING ran", denied.i
 check("batch rejects malformed steps without running anything", (await call("browser_batch", { steps: [{ action: "click" }] })).isError === true);
 const usage = await c.callTool({ name: "usage_report", arguments: {} });
 check("usage_report counts the calls made", /browser_snapshot \| [1-9]\d* \|/.test(textOf(usage)) && /Calls: \d+/.test(textOf(usage)));
+
+// ---- state tools (Issue #38) ----
+await call("browser_navigate", { url: `http://127.0.0.1:${port}/state` });
+const setRes = await call("browser_set_storage", { cookies: [{ name: "sid", value: "abc123" }], localStorage: { tok: "xyz789" }, sessionStorage: { s: "sess456" } });
+check("set_storage reports names, never values", !setRes.isError && /cookie:sid/.test(textOf(setRes)) && !/abc123|xyz789|sess456/.test(textOf(setRes)), textOf(setRes));
+await call("browser_history", { action: "reload" });
+const seen = textOf(await call("browser_snapshot"));
+check("cookie, localStorage and sessionStorage are visible to the page after reload", /sid=abc123/.test(seen) && /ls=xyz789/.test(seen) && /ss=sess456/.test(seen), seen);
+const events = fs.readFileSync(path.join(ws, ".agent-artifacts", "events.jsonl"), "utf8");
+check("values never reach the activity timeline (names do)", /cookie:sid/.test(events) && !/abc123|xyz789|sess456/.test(events));
+check("a cookie value that smuggles attributes is refused", (await call("browser_set_storage", { cookies: [{ name: "a", value: "v; Domain=evil.com" }] })).isError === true);
+await call("browser_set_storage", { clear: true });
+await call("browser_history", { action: "reload" });
+check("clear removes cookies and storage of this host", /cookie= ls=none ss=none/.test(textOf(await call("browser_snapshot"))));
+
+fs.writeFileSync(path.join(ws, "hello.txt"), "hello");
+fs.writeFileSync(path.join(ws, ".env"), "SECRET=1");
+await call("browser_navigate", { url: `http://127.0.0.1:${port}/upload` });
+const up = await call("browser_upload_file", { target: "#f", paths: ["hello.txt"] });
+check("upload_file attaches a workspace file", !up.isError && /hello\.txt/.test(textOf(up)), textOf(up));
+check("the page received the file (name and size)", /hello\.txt:5/.test(textOf(await call("browser_snapshot"))));
+check("upload refuses a secret file inside the workspace", (await call("browser_upload_file", { target: "#f", paths: [".env"] })).isError === true);
+check("upload refuses a path outside the workspace", (await call("browser_upload_file", { target: "#f", paths: ["../../../../etc/hosts"] })).isError === true);
 
 await c.close();
 server.close();

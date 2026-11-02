@@ -50,6 +50,7 @@ fix code**, not a stage for a finished result. Antigravity-style rules:
 | `browser_click(target)` / `browser_type(target, text, submit?)` | Interact via snapshot ref or Playwright selector |
 | `browser_click_at(x, y)` | Canvas UIs (Flutter web, WebGL, games): read coordinates off a screenshot, click them |
 | `browser_press_key(key)` / `browser_hover(target)` / `browser_select_option(target, values)` | Keyboard, hover menus, `<select>` — no need to hack around with selectors |
+| `browser_set_storage(cookies?, localStorage?, sessionStorage?, clear?)` / `browser_upload_file(target, paths)` | Logged-in states (set a test token, then reload) and file inputs (workspace files only; secrets refused). Write-only: you never read values back |
 | `browser_wait_for(text?, textGone?, ms?)` | Wait for async UI instead of polling snapshots |
 | `browser_history(back\|forward\|reload)` | Reload to re-verify after a code change |
 | `browser_resize(width, height)` | Responsive / mobile layout checks |

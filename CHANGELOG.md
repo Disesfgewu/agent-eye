@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **`browser_set_storage` and `browser_upload_file`** (#38). Test logged-in apps and file-input forms: set/clear cookies, localStorage and sessionStorage of the current allowlisted page, and attach workspace files to an `<input type=file>`. Write-only and defensive by design: values are never echoed, logged or shown on the timeline (names only); cookie values cannot smuggle attributes; uploads are limited to regular files inside the workspace (symlinks resolved), 10 files / 25 MB each / 100 MB total, with secrets and tooling state refused (`.env*`, keys/certs, `.git/`, `.ssh/`, `.agent-eye/`, ...). Both are `sideEffect` actions. Fixed tool-definition cost +296 tokens in the full toolset; `AGENT_EYE_TOOLSET=core` is unchanged (2,176).
+
 ## 0.3.0 - 2026-11-02
 
 **Security release for anyone using `start_dev_server`** (#32: the command allowlist could be used to run arbitrary code through `python -m timeit`, `npm install <pkg>`, `rails runner`, `deno run npm:x`, ...; update recommended). Also: Windows real executables spawned without cmd.exe (#35), snapshot `depth`/`find` (#36), screenshot `ifChanged` (#37), Firefox/WebKit install + browser/device/viewport settings in the extension (#30), real-toolchain CI for .NET/Maven/Gradle/Elixir/Trunk (#33).

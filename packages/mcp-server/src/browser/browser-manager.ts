@@ -3,6 +3,7 @@ import { log } from "../logger.js";
 import { RingBuffer } from "./ring-buffer.js";
 import { findPidsUsingDir } from "../reaper.js";
 import { BLOCKED_HOST_RESOLVER_RULES, isBlockedHost } from "../security/url-guard.js";
+import type { CookieInput } from "../security/state-guard.js";
 import { DEFAULT_VIEWPORT, launchErrorHint, parseEngine, parseViewport, resolveDevice, type DeviceOptions, type EngineName, type Viewport } from "./engine.js";
 
 interface Reaper {
@@ -726,6 +727,42 @@ export class BrowserManager {
   }
 
   /** Origin of the current page (e.g. "http://localhost:3000"), for shortening URLs. */
+  /** Attaches files to an <input type=file> (paths already validated by security/state-guard). */
+  async setInputFiles(target: string, files: string[]): Promise<void> {
+    const page = await this.ensurePage();
+    await this.locate(page, target).first().setInputFiles(files, { timeout: 10_000 });
+  }
+
+  /** Sets cookies for the current page's URL. Values are never logged. */
+  async setCookies(cookies: CookieInput[]): Promise<void> {
+    const page = await this.ensurePage();
+    await page.context().addCookies(cookies.map((c) => ({ ...c, url: page.url() })));
+  }
+
+  /** Writes localStorage / sessionStorage entries of the current page (data is passed as arguments, never as code). */
+  async setWebStorage(kind: "localStorage" | "sessionStorage", entries: Record<string, string>): Promise<void> {
+    const page = await this.ensurePage();
+    await page.evaluate(
+      ({ kind: k, entries: e }) => {
+        // runs in the page: no DOM lib here, so the globals are typed locally
+        const g = globalThis as unknown as Record<string, { setItem(key: string, value: string): void }>;
+        for (const [key, value] of Object.entries(e)) g[k].setItem(key, value);
+      },
+      { kind, entries }
+    );
+  }
+
+  /** Clears the current host's cookies and the page's local/session storage. */
+  async clearState(): Promise<void> {
+    const page = await this.ensurePage();
+    await page.context().clearCookies({ domain: new URL(page.url()).hostname });
+    await page.evaluate(() => {
+      const g = globalThis as unknown as Record<string, { clear(): void }>;
+      g.localStorage.clear();
+      g.sessionStorage.clear();
+    });
+  }
+
   currentOrigin(): string | undefined {
     const u = this.currentUrl();
     try {
