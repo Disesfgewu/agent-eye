@@ -1,0 +1,62 @@
+name: playwright-latest
+
+# Weekly (and on demand): run the Node server's tests and every e2e suite against the NEWEST Playwright, which
+# ordinary CI does not do (it uses the version in package-lock.json). Playwright 1.64 changing element handles to
+# `f1e3` was only noticed through the unpinned Python package (Issue #67); this catches that class of break early.
+# On failure it opens (or comments on) one issue labelled "playwright-latest"; commits nothing.
+on:
+  schedule:
+    - cron: "30 3 * * 1" # Mondays 03:30 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  latest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Install the newest Playwright (not saved to package.json / the lockfile)
+        run: npm install --no-save playwright@latest playwright-core@latest
+      - run: node -e "console.log('playwright', require('playwright/package.json').version)"
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Unit tests
+        run: npm test
+      - name: e2e (chromium, firefox, webkit) and CDP
+        working-directory: packages/mcp-server
+        run: |
+          set -e
+          for engine in chromium firefox webkit; do
+            echo "::group::e2e $engine"
+            AGENT_EYE_BROWSER=$engine node e2e-browser.mjs
+            echo "::endgroup::"
+          done
+          node e2e-cdp.mjs
+
+      - name: Report a break
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ver=$(node -p "require('playwright/package.json').version" 2>/dev/null || echo unknown)
+          url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          body="The weekly run against Playwright **$ver** failed: $url"
+          gh label create playwright-latest --color B60205 --description "Breaks on the newest Playwright" 2>/dev/null || true
+          existing=$(gh issue list --label playwright-latest --state open --json number -q '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "$body"
+          else
+            gh issue create --label playwright-latest --title "Breaks on the newest Playwright ($ver)" \
+              --body "$body
+
+          Reproduce locally: \`npm install --no-save playwright@latest playwright-core@latest && npm run build && npm test\`, then the e2e scripts in \`packages/mcp-server\`. Fix the break, then raise the range in \`packages/mcp-server/package.json\` and the pin in \`packages/vscode-extension/src/runtime.ts\` (a unit test keeps those two consistent)."
+          fi
