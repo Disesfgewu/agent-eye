@@ -132,10 +132,18 @@ const shot1 = await call("browser_screenshot", { ifChanged: true });
 const shot2 = await call("browser_screenshot", { ifChanged: true });
 check("screenshot ifChanged: first shot returns the image", hasImage(shot1));
 const imgOf = (r) => Buffer.from((r.content || []).find((x) => x.type === "image")?.data ?? "", "base64");
-const [b1, b2] = [imgOf(shot1), imgOf(shot2)];
-const differing = b1.length === b2.length ? [...b1].filter((v, i) => v !== b2[i]).length : -1;
-check("screenshot ifChanged: identical page -> one line, no image", !hasImage(shot2) && /unchanged/i.test(textOf(shot2)),
-  `${textOf(shot2)} | two captures of a static page: ${b1.length} vs ${b2.length} bytes, ${differing < 0 ? "different sizes" : `${differing} differing bytes`}`);
+// ifChanged compares bytes, so it can only help where the browser renders a static page byte-identically. Probe that first with two
+// plain captures (independent of the ifChanged logic): real Google Chrome on macOS was observed to differ between two captures of the
+// same static page (e.g. 11429 vs 11447 bytes), where it simply degrades to returning the image. Unstable rendering is reported, not failed;
+// stable rendering with a wrong answer still fails.
+const [p1, p2] = [imgOf(await call("browser_screenshot", {})), imgOf(await call("browser_screenshot", {}))];
+check("screenshot stability probe captured two images", p1.length > 0 && p2.length > 0);
+const renderingStable = p1.length > 0 && p1.equals(p2);
+if (renderingStable) {
+  check("screenshot ifChanged: identical page -> one line, no image", !hasImage(shot2) && /unchanged/i.test(textOf(shot2)), textOf(shot2));
+} else {
+  console.log(`SKIP  screenshot ifChanged: identical page -> one line (this browser does not render a static page byte-identically: ${p1.length} vs ${p2.length} bytes; ifChanged then returns the image, which is the safe fallback)`);
+}
 await call("browser_type", { target: "#i", text: "changed-input" });
 check("screenshot ifChanged: after a visible change the image is returned again", hasImage(await call("browser_screenshot", { ifChanged: true })));
 check("screenshot without ifChanged always returns the image", hasImage(await call("browser_screenshot", {})));
