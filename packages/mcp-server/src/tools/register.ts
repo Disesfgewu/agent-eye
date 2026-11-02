@@ -11,6 +11,8 @@ import { redactHeaders, redactText } from "../security/redaction.js";
 import { log } from "../logger.js";
 import { registerActionTools } from "./register-actions.js";
 import { registerCompositeTools } from "./register-composite.js";
+import { registerProjectTools } from "./register-project.js";
+import { extractPorts, portOpen, waitForPort } from "../devserver/ready.js";
 import {
   diffSnapshots,
   filterInteractive,
@@ -403,15 +405,17 @@ export function registerTools(ctx: ToolContext): void {
     {
       title: "Start dev server",
       description:
-        "Start a managed dev server (allowlisted executable; cwd inside the workspace). Returns immediately; poll get_dev_server_logs.",
+        "Start a managed dev server (allowlisted executable; cwd inside the workspace). With `port`, waits until it listens or exits (build errors returned); else returns at once - poll get_dev_server_logs.",
       inputSchema: {
         id: z.string().describe("A short id you choose to refer to this server (e.g. 'web', 'api')."),
         command: z.string().describe("Executable to run (e.g. 'npm', 'pnpm', 'vite'). Allowlisted commands only."),
         args: z.array(z.string()).optional().describe("Arguments, e.g. ['run','dev']."),
         cwd: z.string().optional().describe("Working directory relative to the workspace root. Default: workspace root."),
+        port: z.number().int().min(1).max(65535).optional().describe("Port to wait for (see detect_project)."),
+        waitSeconds: z.number().int().min(1).max(55).optional().describe("Max wait for `port`, default 30. On timeout call again with the same id+port to keep waiting."),
       },
     },
-    async ({ id, command, args, cwd }): Promise<ToolResult> => {
+    async ({ id, command, args, cwd, port, waitSeconds }): Promise<ToolResult> => {
       const verdict = classifyCommand(command, args ?? [], cwd ?? ".", ctx.workspaceRoot, policy.commandAllowlist);
       if (verdict.verdict === "blocked") {
         artifacts.record({ type: "dev_server", tool: "start_dev_server", title: `Blocked: ${command}`, detail: verdict.reason, status: "denied" });
@@ -427,10 +431,36 @@ export function registerTools(ctx: ToolContext): void {
       });
       if (!gateResult.ok) return errorResult(gateResult.message);
       try {
+        // A foreign process already on the port would make the wait report "ready" for the wrong server.
+        if (port !== undefined && devServers.getStatus(id)?.status !== "running" && (await portOpen(port))) {
+          return errorResult(`Port ${port} already accepts connections (another process). Not starting "${id}"; pick a different port or stop that process.`);
+        }
         const { alreadyRunning } = devServers.start(id, verdict.command, verdict.args, verdict.cwd);
-        if (alreadyRunning) return text(`Dev server "${id}" is already running.`);
-        artifacts.record({ type: "dev_server", tool: "start_dev_server", title: `Started dev server "${id}"`, detail: fullCmd, status: "ok" });
-        return text(`Started dev server "${id}": ${fullCmd}\nUse get_dev_server_logs("${id}") to read output.`);
+        if (!alreadyRunning) {
+          artifacts.record({ type: "dev_server", tool: "start_dev_server", title: `Started dev server "${id}"`, detail: fullCmd, status: "ok" });
+        }
+        const head = alreadyRunning ? `Dev server "${id}" is already running.` : `Started dev server "${id}": ${fullCmd}`;
+        if (port === undefined) {
+          return text(alreadyRunning ? head : `${head}\nUse get_dev_server_logs("${id}") to read output.`);
+        }
+        const outcome = await waitForPort(port, {
+          timeoutMs: (waitSeconds ?? 30) * 1000,
+          isAlive: () => devServers.getStatus(id)?.status === "running",
+        });
+        const secs = (outcome.elapsedMs / 1000).toFixed(1);
+        const lines = (devServers.getLogs(id, 200) ?? []).map((l) => l.text);
+        const tail = lines.slice(-12).map((l) => (l.length > 200 ? `${l.slice(0, 200)}...` : l)).join("\n") || "(no output)";
+        if (outcome.state === "ready") return text(`${head}\nReady: http://localhost:${port} (${secs}s).`);
+        const status = devServers.getStatus(id);
+        if (outcome.state === "exited") {
+          return errorResult(`Dev server "${id}" exited${status?.exitCode != null ? ` with code ${status.exitCode}` : ""} after ${secs}s before port ${port} opened. Last output:\n${tail}`);
+        }
+        const seen = extractPorts(lines).filter((p) => p !== port);
+        return text(
+          `${head}\nStill running but port ${port} is not accepting connections after ${secs}s (compiled stacks can be slow).` +
+            (seen.length ? ` Ports mentioned in the logs: ${seen.join(", ")}.` : "") +
+            `\nCall start_dev_server again with the same id and port to keep waiting.\nLast output:\n${tail}`
+        );
       } catch (err) {
         return toolError("start_dev_server", `Failed to start dev server "${id}"`, err, artifacts);
       }
@@ -483,6 +513,7 @@ export function registerTools(ctx: ToolContext): void {
 
   registerActionTools(ctx);
   registerCompositeTools(ctx);
+  registerProjectTools(ctx);
 
   log.info("Registered Agent Eye tools");
 }

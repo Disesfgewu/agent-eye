@@ -56,3 +56,28 @@ jobs:
         env:
           AGENT_EYE_BROWSER: ${{ matrix.engine }}
         run: node e2e-browser.mjs
+
+  e2e-toolchains:
+    name: e2e (Go, Rust, Python, Node dev servers)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - run: npm ci
+      - run: npm run build
+      - name: Toolchain versions
+        run: |
+          go version
+          cargo --version
+          python3 --version
+      - name: detect_project + start_dev_server against real toolchains
+        working-directory: packages/mcp-server
+        env:
+          AGENT_EYE_REQUIRE_TOOLCHAINS: go,cargo,python
+        run: node e2e-toolchains.mjs

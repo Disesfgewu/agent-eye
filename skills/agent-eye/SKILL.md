@@ -1,6 +1,6 @@
 ---
 name: agent-eye
-description: MANDATORY for any frontend task — build, change, test or debug web UI (React, Vue, Svelte, Angular, Next/Nuxt, plain HTML/CSS/JS, Flutter web). Drives a VISIBLE browser through the Agent Eye MCP tools (browser_*, *_dev_server) so the user watches live: reproduce the bug on screen, fix, reload, re-verify, demo. Trigger on build/fix/adjust-UI requests, UI problems ("XX 按鈕沒有作用", "OOO 功能失敗", "頁面壞了", "button doesn't work", "page is blank"), "我希望...的部分可以是..." changes, or demo/verification requests.
+description: MANDATORY for any frontend task — build, change, test or debug web UI (React, Vue, Svelte, Angular, Next/Nuxt, plain HTML/CSS/JS, Flutter web, or a Go/Rust/.NET/Java/Elixir app that serves or feeds a UI). Drives a VISIBLE browser through the Agent Eye MCP tools (browser_*, *_dev_server) so the user watches live: reproduce the bug on screen, fix, reload, re-verify, demo. Trigger on build/fix/adjust-UI requests, UI problems ("XX 按鈕沒有作用", "OOO 功能失敗", "頁面壞了", "button doesn't work", "page is blank"), "我希望...的部分可以是..." changes, or demo/verification requests.
 ---
 
 # Agent Eye — see and drive the real frontend
@@ -40,7 +40,8 @@ fix code**, not a stage for a finished result. Antigravity-style rules:
 |---|---|
 | `browser_show_status(message)` | Live narration banner in the window — tell the watching user what you're doing right now |
 | `browser_close()` | Close the window when the task is fully done (auto-closes after idle too) |
-| `start_dev_server(id, command, args?, cwd?)` | Launch frontend/backend dev servers (allowlisted commands, cwd inside workspace) |
+| `detect_project(path?)` | Unfamiliar repo or non-JS stack (Go, Rust, .NET, JVM, Elixir, Python, Flutter…)? Returns the exact `start_dev_server` args + expected port in ~60 tokens instead of you reading manifests and guessing |
+| `start_dev_server(id, command, args?, cwd?, port?, waitSeconds?)` | Launch frontend/backend dev servers (allowlisted commands, cwd inside workspace). With `port` it waits until the server listens, or returns the build error if it exits |
 | `get_dev_server_logs(id, limit?)` | Poll startup output ("listening", "serving", errors) |
 | `stop_dev_server(id)` | Tear down a server you started |
 | `browser_navigate(url)` | Open the app (localhost by default; window pops up, user watches) |
@@ -60,7 +61,8 @@ fix code**, not a stage for a finished result. Antigravity-style rules:
 ## The mandatory loop
 
 1. **Open first — probe before starting.** Try `browser_verify_page` (or `browser_navigate`) to the app's likely local URL (the port from the project's config, or a common dev port). `browser_navigate` to localhost is auto-allowed — no permission prompt. If it loads, the server is ALREADY running: skip step 1b entirely. This is the common case; do NOT blindly `start_dev_server`, which is an "ask"-tier action and will interrupt the user with an approval prompt (and may collide with an already-running server / port).
-   - **1b. Only if navigation fails** (connection refused): `start_dev_server`, then poll `get_dev_server_logs` until it says listening/ready (don't guess; read it), then `browser_navigate`. The user approves this once.
+   - **1b. Only if navigation fails** (connection refused): if you don't already know the command, call `detect_project`; then `start_dev_server` with its args **and `port`** — the call returns `Ready: http://localhost:PORT` or the build/compile error (Go, Rust, .NET and JVM builds can take a while; if it says "Still running", call again with the same id+port). Without `port`, poll `get_dev_server_logs` until it says listening/ready (don't guess; read it). Then `browser_navigate`. The user approves this once.
+   - Backend-only change in Go/Rust/…: restart the server (`stop_dev_server`, then start again) or use the project's watcher (`air`, `cargo watch -x run`, `dotnet watch run`) and re-verify in the browser.
    A visible window appears on navigate — from here on, you are also demoing.
 2. **See** — `browser_snapshot` first. If it's nearly empty, the app is canvas-rendered → switch to `browser_screenshot` + `browser_click_at`.
 3. **Operate the actual user flow** — click the real buttons, type in the real inputs, submit the real forms. Test navigation by clicking links/cards and confirming the destination page rendered.
