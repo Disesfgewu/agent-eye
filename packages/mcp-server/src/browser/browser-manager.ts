@@ -806,7 +806,9 @@ export class BrowserManager {
   /** Sets cookies for the current page's URL. Values are never logged. */
   async setCookies(cookies: CookieInput[]): Promise<void> {
     const page = await this.ensurePage();
-    await page.context().addCookies(cookies.map((c) => ({ ...c, url: page.url() })));
+    // Playwright takes EITHER a url OR a domain+path pair, never url together with path.
+    const host = new URL(page.url()).hostname;
+    await page.context().addCookies(cookies.map((c) => (c.path ? { ...c, domain: host, path: c.path } : { ...c, url: page.url() })));
   }
 
   /** Writes localStorage / sessionStorage entries of the current page (data is passed as arguments, never as code). */

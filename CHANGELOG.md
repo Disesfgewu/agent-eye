@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Fix: `browser_set_storage` rejected every cookie that had a `path`** (#38 regression). Playwright takes a `url` or a `domain`+`path`, never both, and the tool always sent `url`. Cookies with a path now use `domain`+`path`; the e2e checks that path scoping is honoured (a `/state` cookie is seen on `/state`, a `/other` cookie is not).
 - **Python package: `verify_page`, `batch` and the token ledger; the Python MCP server works again** (#31, part 2). `verify_page` and `batch` behave like the Node tools (all batch steps are permission-checked before any runs; a step approved in phase 1 is not prompted again). `usage_report` + a per-tool ledger written to `.agent-artifacts/usage.json` / `usage-history.jsonl`, with estimators checked against golden numbers from the TypeScript reference (`usage-cases.json`). **Fixes for the Python MCP server, found by finally testing it end to end with the official MCP client:** (1) `pip install "agent-eye[mcp]"` installs mcp 2.x today, which renamed `FastMCP` to `MCPServer`, so the server failed on start with a misleading "install the extra" message; both majors are supported now and the real import error is shown. (2) Playwright's sync API cannot run inside an asyncio loop (mcp 1.x runs sync tools on it) and is thread-affine (mcp 2.x uses arbitrary worker threads): every tool and the final close now run on one dedicated thread. CI tests Python 3.9 + mcp<2, 3.12 + mcp<2 and 3.12 + latest mcp.
 
 ## 0.4.0 - 2026-11-02
