@@ -86,19 +86,23 @@ jobs:
         run: node e2e-toolchains.mjs
 
   python-tests:
-    name: python (${{ matrix.python }})
+    name: python (${{ matrix.python }}, ${{ matrix.mcp }})
     # 24.04, not ubuntu-latest: setup-python has no 3.9 build for 26.04, and 3.9 is our declared minimum.
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.9", "3.12"]
+        # mcp 2.x dropped Python 3.9 and renamed FastMCP; the server supports both majors, so test both.
+        include:
+          - { python: "3.9", mcp: "mcp<2" }
+          - { python: "3.12", mcp: "mcp<2" }
+          - { python: "3.12", mcp: "mcp" }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
-      - run: pip install playwright
+      - run: pip install playwright "${{ matrix.mcp }}"
       - run: python -m playwright install --with-deps chromium
       - name: Conformance + dev-server + real-browser smoke tests
         working-directory: packages/python

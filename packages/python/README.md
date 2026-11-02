@@ -37,7 +37,7 @@ Methods: `navigate`, `snapshot(interactive, selector, delta, depth, find, max_ch
 `type`, `press_key`, `hover`, `select_option`, `wait_for`, `history`, `resize`, `screenshot`,
 `console(types, limit, include_history)` and `network(failed_only, url_contains, include_static, ...)`
 (compact, current page load only), raw `get_console_logs` / `get_network_requests`, `evaluate` (high-risk),
-`detect_project`, `start_dev_server`, `get_dev_server_logs`, `stop_dev_server`.
+`verify_page`, `batch`, `detect_project`, `start_dev_server`, `get_dev_server_logs`, `stop_dev_server`.
 
 ### Any stack, not just JavaScript
 
@@ -70,7 +70,8 @@ pip install "agent-eye[mcp]"
 agent-eye-mcp --workspace .
 ```
 
-Exposes the same tools over MCP for any MCP-aware agent.
+Exposes the same tools over MCP for any MCP-aware agent (`mcp` 1.x and 2.x are both supported; all tools run on one
+dedicated thread because Playwright's sync API is thread-affine). `usage_report` shows the estimated token cost per tool.
 
 ## Parity with the Node MCP server
 
@@ -86,8 +87,8 @@ fixed on one side and missing on the other fails the build.
 | Snapshot with `[ref=eN]` handles, metadata-host request blocking (Chromium) | yes | yes |
 | press / hover / select / wait_for / history (post-checked against the allowlist) / resize, dialogs and popups | yes | yes |
 | Compact output: snapshot `interactive`/`selector`/`delta`/`depth`/`find`/cap, one-line network, console/network scoped to the current page load | yes (golden-tested against the Node formatters) | yes |
-| `verify_page`, `batch` | **no** | yes |
-| Token usage ledger + `usage_report` | **no** | yes |
+| `verify_page`, `batch` (all steps approved before any runs) | yes | yes |
+| Token usage ledger + `usage_report` (estimator golden-tested against the Node one) | yes (MCP server) | yes |
 | Firefox / WebKit / device emulation, CDP attach | **no** | yes |
 | `set_storage`, `upload_file`, `perf_summary`, screenshot `ifChanged` | **no** | yes |
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- **Python package: `verify_page`, `batch` and the token ledger; the Python MCP server works again** (#31, part 2). `verify_page` and `batch` behave like the Node tools (all batch steps are permission-checked before any runs; a step approved in phase 1 is not prompted again). `usage_report` + a per-tool ledger written to `.agent-artifacts/usage.json` / `usage-history.jsonl`, with estimators checked against golden numbers from the TypeScript reference (`usage-cases.json`). **Fixes for the Python MCP server, found by finally testing it end to end with the official MCP client:** (1) `pip install "agent-eye[mcp]"` installs mcp 2.x today, which renamed `FastMCP` to `MCPServer`, so the server failed on start with a misleading "install the extra" message; both majors are supported now and the real import error is shown. (2) Playwright's sync API cannot run inside an asyncio loop (mcp 1.x runs sync tools on it) and is thread-affine (mcp 2.x uses arbitrary worker threads): every tool and the final close now run on one dedicated thread. CI tests Python 3.9 + mcp<2, 3.12 + mcp<2 and 3.12 + latest mcp.
+
 ## 0.4.0 - 2026-11-02
 
 New tools and one opt-in capability: `browser_set_storage` / `browser_upload_file` (#38), `browser_perf_summary` (#39), attach to your own Chromium over CDP with `AGENT_EYE_CDP_URL` (#40, off by default, fenced: Agent Eye only ever touches the tabs it opens), and the Python package now has the compact output and interaction tools (#31, part 1). Includes a fix for frame-prefixed element handles (`f1e3`, Playwright >= 1.64) in both servers.

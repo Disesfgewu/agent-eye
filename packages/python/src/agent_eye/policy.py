@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import os
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Callable, Optional
 
@@ -88,8 +89,21 @@ class PermissionGate:
         self.policy = policy
         self.on_approve = on_approve
         self._session_approved = set()
+        self._preapproved = 0
+
+    @contextmanager
+    def preapproved(self):
+        """Inside this block ``check`` passes: the caller already checked EVERY action it is about to run (browser_batch
+        approves all steps before executing any), so the same action is not prompted a second time."""
+        self._preapproved += 1
+        try:
+            yield
+        finally:
+            self._preapproved -= 1
 
     def check(self, category: str, title: str, detail: str = "", remember: bool = False) -> None:
+        if self._preapproved:
+            return
         decision = self.policy.categories.get(category, "deny")
         if decision == "ask" and category in self._session_approved:
             return
