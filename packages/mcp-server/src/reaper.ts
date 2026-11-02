@@ -141,7 +141,10 @@ export function processStartSync(pid: number): string | undefined {
   try {
     if (process.platform === "linux") {
       const stat = fs.readFileSync(`/proc/${pid}/stat`, "utf8");
-      return stat.slice(stat.lastIndexOf(")") + 2).split(" ")[19] || undefined;
+      const fields = stat.slice(stat.lastIndexOf(")") + 2).split(" ");
+      // a zombie (state Z) or dead (X) process is finished: it only lingers until its parent calls wait()
+      if (fields[0] === "Z" || fields[0] === "X") return undefined;
+      return fields[19] || undefined;
     }
     if (isWindows) {
       const r = spawnSync("powershell", ["-NoProfile", "-Command", winStartCommand(pid)], { encoding: "utf8", timeout: 10000 });

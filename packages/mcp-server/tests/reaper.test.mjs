@@ -153,3 +153,18 @@ test("a hard-killed server leaves its child running; the next start reaps it (re
   assert.ok(ProcessReaper.reapStale(dir).includes(info.child));
   assert.ok(await until(() => !alive(info.child), 15000), "the orphan was reaped");
 });
+
+test("a zombie (finished, not yet waited for by its parent) has no start time, so a zombie owner counts as dead (Linux)", { skip: process.platform !== "linux" }, async () => {
+  // `sleep 0.1 &` exits at once and stays a zombie because the shell then exec()s into a `sleep` that never wait()s for it
+  const holder = spawn("sh", ["-c", "sleep 0.1 & echo $!; exec sleep 300"], { stdio: ["ignore", "pipe", "ignore"] });
+  procs.push(holder);
+  const zombie = Number(await new Promise((resolve) => holder.stdout.once("data", (d) => resolve(d.toString().trim()))));
+  assert.ok(await until(() => fs.readFileSync(`/proc/${zombie}/stat`, "utf8").includes(") Z "), 5000), "premise: it is a zombie");
+  assert.equal(processStartSync(zombie), undefined, "a zombie is finished");
+  // and as an owner: its record must be reaped even though /proc/<pid> still exists
+  const dir = mkdir();
+  const child = sleeper();
+  await until(() => processStartSync(child.pid) !== undefined);
+  record(dir, zombie, "any", [[child.pid, processStartSync(child.pid)]]);
+  assert.deepEqual(ProcessReaper.reapStale(dir), [child.pid]);
+});
