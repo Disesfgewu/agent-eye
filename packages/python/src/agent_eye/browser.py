@@ -25,6 +25,7 @@ from .policy import Policy, PermissionGate
 from .devserver import DevServerManager
 from . import guards
 from . import detect as detect_mod
+from . import engine as engine_mod
 from . import format as fmt
 from . import perf as perf_mod
 from . import state_guard
@@ -120,6 +121,10 @@ class AgentEye:
         self._attached = weakref.WeakSet()
         self._last_snapshot = None  # (key, text) of the previous snapshot, for delta=True
         self._no_refs = False  # set when this Playwright cannot emit [ref=eN] handles
+        self._viewport = dict(engine_mod.DEFAULT_VIEWPORT)
+        self._engine = "chromium"
+        self._cdp_browser = None  # set only when attached to the user's own browser (AGENT_EYE_CDP_URL)
+        self._own_pages = set()  # in CDP mode: the only pages Agent Eye may touch
         self._shots = OrderedDict()  # key -> (sha256, last seen), for screenshot(if_changed=True); bounded
         self._perf_pages = weakref.WeakSet()
         # confirm()/prompt() are dismissed unless AGENT_EYE_DIALOG=accept; alert()/beforeunload only inform.
@@ -134,24 +139,37 @@ class AgentEye:
         self.close()
 
     def close_browser(self) -> None:
-        """Close the browser only (dev servers keep running); it reopens on the next browser tool call."""
+        """Close the browser only (dev servers keep running); it reopens on the next browser tool call. When attached
+        to your own browser (AGENT_EYE_CDP_URL) only the tabs Agent Eye opened are closed, then it disconnects."""
+        if self._cdp_browser is not None:
+            browser = self._cdp_browser
+            for p in list(self._own_pages):
+                try:
+                    p.close()
+                except Exception:
+                    pass
+            self._reset_browser()
+            try:
+                browser.close()  # disconnects; the user's browser keeps running
+            except Exception:
+                pass
+            return
         if self._context is not None:
             try:
                 self._context.close()
             except Exception:
                 pass
-            self._context = None
-            self._page = None
+        self._reset_browser()
+
+    def _reset_browser(self) -> None:
+        self._context = None
+        self._page = None
+        self._cdp_browser = None
+        self._own_pages = set()
 
     def close(self):
         self._dev.stop_all()
-        if self._context is not None:
-            try:
-                self._context.close()
-            except Exception:
-                pass
-            self._context = None
-            self._page = None
+        self.close_browser()
         if self._pw is not None:
             try:
                 self._pw.stop()
@@ -159,31 +177,96 @@ class AgentEye:
                 pass
             self._pw = None
 
-    def _ensure_page(self):
-        if self._page is not None:
-            return self._page
-        from playwright.sync_api import sync_playwright
+    def _playwright(self):
+        if self._pw is None:
+            from playwright.sync_api import sync_playwright
+            self._pw = sync_playwright().start()
+        return self._pw
 
-        self._pw = sync_playwright().start()
-        self._context = self._pw.chromium.launch_persistent_context(
-            self.profile_dir,
-            headless=self.headless or os.environ.get("AGENT_EYE_HEADLESS") == "1",
-            channel=self.channel,
-            slow_mo=self.slow_mo,
-            viewport={"width": 1280, "height": 800},
-            # Render at 2x so canvas UIs (Flutter web) are crisp on HiDPI /
-            # scaled displays. Logical coords stay 1280x800; screenshots use css.
-            device_scale_factor=int(os.environ.get("AGENT_EYE_DEVICE_SCALE") or 2),
-            args=[
-                "--no-first-run",
-                # Page-initiated requests to cloud-metadata hosts can never resolve (SSRF defense).
-                f"--host-resolver-rules={guards.BLOCKED_HOST_RESOLVER_RULES}",
-                "--no-default-browser-check",
-                "--disable-save-password-bubble",
-                "--disable-features=PasswordManager,AutofillServerCommunication,Translate",
-            ],
-            ignore_default_args=["--enable-automation"],
-        )
+    def _devices_camel(self) -> dict:
+        """Playwright's Python device table (snake_case) in the shape the shared rules use (camelCase)."""
+        return {
+            name: {"userAgent": d.get("user_agent"), "viewport": d.get("viewport"), "deviceScaleFactor": d.get("device_scale_factor"),
+                   "isMobile": d.get("is_mobile"), "hasTouch": d.get("has_touch")}
+            for name, d in self._playwright().devices.items()
+        }
+
+    def _ensure_page(self):
+        if self._page is not None and not self._page.is_closed():
+            return self._page
+        cdp_url = engine_mod.parse_cdp_url(os.environ.get("AGENT_EYE_CDP_URL"))
+        if cdp_url:
+            return self._ensure_cdp_page(cdp_url)
+        if self._context is not None:
+            # the window/tab was closed (by the user, or a crash): reuse the context if it is alive, else relaunch
+            try:
+                self._page = self._context.new_page()
+                self._attach(self._page)
+                return self._page
+            except Exception:
+                self._reset_browser()
+        return self._launch_page()
+
+    def _launch_page(self):
+        engine = engine_mod.parse_engine(os.environ.get("AGENT_EYE_BROWSER"))
+        if self.channel and engine != "chromium":
+            raise ValueError(f"AGENT_EYE_BROWSER_CHANNEL ({self.channel}) only applies to chromium, not {engine}.")
+        pw = self._playwright()
+        device = None
+        if os.environ.get("AGENT_EYE_DEVICE"):
+            device = engine_mod.resolve_device(self._devices_camel(), os.environ["AGENT_EYE_DEVICE"], engine)
+        self._viewport = engine_mod.parse_viewport(os.environ.get("AGENT_EYE_VIEWPORT")) or (device or {}).get("viewport") or dict(engine_mod.DEFAULT_VIEWPORT)
+        self._engine = engine
+        scale_env = os.environ.get("AGENT_EYE_DEVICE_SCALE")
+        common = {
+            "headless": self.headless or os.environ.get("AGENT_EYE_HEADLESS") == "1",
+            "slow_mo": self.slow_mo,
+            "viewport": self._viewport,
+            # Render at 2x so canvas UIs (Flutter web) are crisp on HiDPI / scaled displays. A named device brings its own
+            # factor; the env var wins. Logical coords follow the viewport; screenshots use css.
+            "device_scale_factor": (float(scale_env) if scale_env else None) or (device or {}).get("deviceScaleFactor") or 2,
+        }
+        if device:
+            common["user_agent"] = device["userAgent"]
+            common["has_touch"] = bool(device["hasTouch"])
+            if "isMobile" in device:
+                common["is_mobile"] = bool(device["isMobile"])
+        try:
+            if engine == "chromium":
+                self._context = pw.chromium.launch_persistent_context(
+                    self.profile_dir, channel=self.channel, **common,
+                    args=[
+                        "--no-first-run",
+                        # Page-initiated requests to cloud-metadata hosts can never resolve (SSRF defense).
+                        f"--host-resolver-rules={guards.BLOCKED_HOST_RESOLVER_RULES}",
+                        "--no-default-browser-check",
+                        "--disable-save-password-bubble",
+                        "--disable-features=PasswordManager,AutofillServerCommunication,Translate",
+                    ],
+                    ignore_default_args=["--enable-automation"],
+                )
+            elif engine == "firefox":
+                self._context = pw.firefox.launch_persistent_context(
+                    self.profile_dir, **common,
+                    firefox_user_prefs={
+                        "signon.rememberSignons": False, "signon.autofillForms": False,
+                        "extensions.formautofill.addresses.enabled": False,
+                        "extensions.formautofill.creditCards.enabled": False,
+                        "browser.shell.checkDefaultBrowser": False,
+                    },
+                )
+            else:
+                self._context = pw.webkit.launch_persistent_context(self.profile_dir, **common)
+        except Exception as exc:
+            hint = engine_mod.launch_error_hint(engine, exc, "python -m playwright install")
+            if hint:
+                raise hint from exc
+            raise
+        if engine != "chromium":
+            # Chromium blocks metadata hosts at the resolver. Other engines have no such switch, so enforce the same hard
+            # block by request interception: switching engine must never weaken the SSRF guard.
+            from urllib.parse import urlparse
+            self._context.route(lambda url: guards.is_blocked_host(urlparse(url).hostname or ""), lambda route: route.abort("namenotresolved"))
         if self.show_cursor:
             self._context.add_init_script(_CURSOR_SCRIPT)
             self._context.add_init_script(_STATUS_SCRIPT)
@@ -193,6 +276,55 @@ class AgentEye:
         self._page = pages[0] if pages else self._context.new_page()
         self._attach(self._page)
         return self._page
+
+    def _ensure_cdp_page(self, cdp_url: str):
+        """Attach to a Chromium you started with --remote-debugging-port (Issue #40). Rule: Agent Eye owns ONLY the tabs it
+        opens. It never adopts an existing tab, follows only popups opened by its own tabs, applies scripts and request
+        blocking per tab (never per context: that would hit your other tabs), and on close shuts only its own tabs."""
+        from urllib.parse import urlparse
+        if self._context is None:
+            clash = engine_mod.cdp_incompatibility(os.environ, self.channel)
+            if clash:
+                raise ValueError(clash)
+            self._viewport = engine_mod.parse_viewport(os.environ.get("AGENT_EYE_VIEWPORT")) or dict(engine_mod.DEFAULT_VIEWPORT)
+            self._engine = "chromium"
+            pw = self._playwright()
+            try:
+                browser = pw.chromium.connect_over_cdp(cdp_url, timeout=15000)
+            except Exception as exc:
+                first = str(exc).splitlines()[0] if str(exc) else type(exc).__name__
+                raise RuntimeError(
+                    f"Could not attach to {cdp_url}: {first}. Start Chromium/Chrome with --remote-debugging-port=<port> "
+                    "and (Chrome 136+) a non-default --user-data-dir."
+                ) from exc
+            self._cdp_browser = browser
+            self._context = browser.contexts[0] if browser.contexts else browser.new_context()
+            browser.on("disconnected", lambda *_: self._reset_browser())
+            self._context.on("page", self._on_cdp_popup)
+        page = self._context.new_page()
+        self._own_pages.add(page)
+        self._page = page
+        # Same SSRF guard as the other non-launch paths, but on OUR tab only.
+        page.route(lambda url: guards.is_blocked_host(urlparse(url).hostname or ""), lambda route: route.abort("namenotresolved"))
+        if self.show_cursor:
+            page.add_init_script(_CURSOR_SCRIPT)
+            page.add_init_script(_STATUS_SCRIPT)
+        try:
+            page.set_viewport_size(self._viewport)
+        except Exception:
+            pass
+        self._attach(page)
+        return page
+
+    def _on_cdp_popup(self, page):
+        try:
+            opener = page.opener()
+        except Exception:
+            return
+        if opener is None or opener not in self._own_pages:
+            return  # the user's own new tab: not ours
+        self._own_pages.add(page)
+        self._on_popup(page)
 
     def _on_popup(self, page):
         self._page = page
@@ -517,6 +649,8 @@ class AgentEye:
                  + [f"sessionStorage:{k}" for k in (session_storage or {})])
         if not clear and not names:
             raise ValueError("Nothing to do: pass cookies, local_storage, session_storage or clear.")
+        if clear and self._cdp_browser is not None:
+            raise ValueError("clear is not available when attached to your own browser: it would log you out of other apps on this host. Set the values you need instead.")
         host = urlparse(page.url).hostname or ""
         self.gate.check("sideEffect", f"{'Clear + ' if clear else ''}set {len(names)} state value(s) on {host}", ", ".join(names))
         ctx = page.context
@@ -559,7 +693,8 @@ class AgentEye:
         if page not in self._perf_pages:
             page.add_init_script(perf_mod.PERF_INIT_SCRIPT)
             self._perf_pages.add(page)
-        client = page.context.new_cdp_session(page) if cpu_slowdown > 1 else None
+        throttle = cpu_slowdown > 1 and self._engine == "chromium"
+        client = page.context.new_cdp_session(page) if throttle else None
         try:
             if client:
                 client.send("Emulation.setCPUThrottlingRate", {"rate": int(cpu_slowdown)})
@@ -576,7 +711,7 @@ class AgentEye:
                     client.detach()
                 except Exception:
                     pass
-        ctx = {"url": page.url, "how": "navigated" if url else "reloaded", "engine": "chromium", "cpuSlowdown": int(cpu_slowdown)}
+        ctx = {"url": page.url, "how": "navigated" if url else "reloaded", "engine": self._engine, "cpuSlowdown": int(cpu_slowdown) if throttle else 1}
         return _frame(page.url, perf_mod.format_perf(raw, ctx))
 
     # -- composite tools (Issue #3): one call instead of 4-10 LLM turns --------

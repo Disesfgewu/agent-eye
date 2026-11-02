@@ -83,6 +83,12 @@ def classify_url(raw_url: str, allowlist):
     )
 
 
+def is_blocked_host(hostname: str) -> bool:
+    """True for hosts that must be unreachable from any page (metadata + link-local)."""
+    host = hostname.lower()
+    return host in HARD_BLOCKED_HOSTS or _is_link_local(host)
+
+
 def _inside(root: str, candidate: str) -> bool:
     try:
         return os.path.commonpath([candidate, root]) == root
