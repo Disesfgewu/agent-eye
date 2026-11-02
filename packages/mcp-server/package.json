@@ -1,6 +1,6 @@
 {
   "name": "@agent-eye/mcp-server",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MCP server exposing Playwright browser control and dev-server management for AI coding agents, with server-side permission enforcement.",
   "license": "Apache-2.0",
   "type": "module",
