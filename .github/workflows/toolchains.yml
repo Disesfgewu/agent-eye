@@ -1,0 +1,82 @@
+name: toolchains
+
+# Starts dev servers for the heavier real toolchains (.NET, Maven/Spring Boot, Gradle, Elixir, Trunk)
+# through the built MCP server. Kept out of ci.yml: each job downloads a toolchain and dependencies,
+# so it only runs when something it exercises changes (plus manually and weekly, to notice upstream breakage).
+
+on:
+  pull_request:
+    paths:
+      - "packages/mcp-server/src/security/**"
+      - "packages/mcp-server/src/project/**"
+      - "packages/mcp-server/src/devserver/**"
+      - "packages/mcp-server/src/tools/register.ts"
+      - "packages/mcp-server/e2e-toolchains-extra.mjs"
+      - ".github/workflows/toolchains.yml"
+  push:
+    branches: [main]
+    paths:
+      - "packages/mcp-server/src/security/**"
+      - "packages/mcp-server/src/project/**"
+      - "packages/mcp-server/src/devserver/**"
+      - "packages/mcp-server/e2e-toolchains-extra.mjs"
+      - ".github/workflows/toolchains.yml"
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: e2e (${{ matrix.stack }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        stack: [dotnet, maven, gradle, elixir, trunk]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+
+      - if: matrix.stack == 'dotnet'
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - if: matrix.stack == 'maven' || matrix.stack == 'gradle'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - if: matrix.stack == 'maven'
+        uses: stCarolas/setup-maven@v5
+        with:
+          maven-version: 3.9.9
+      - if: matrix.stack == 'gradle'
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+      - if: matrix.stack == 'elixir'
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "27"
+          elixir-version: "1.17"
+      - if: matrix.stack == 'trunk'
+        run: rustup target add wasm32-unknown-unknown
+      - if: matrix.stack == 'trunk'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: trunk
+
+      - name: detect_project + start_dev_server against the real toolchain
+        working-directory: packages/mcp-server
+        env:
+          AGENT_EYE_STACK: ${{ matrix.stack }}
+          AGENT_EYE_REQUIRE_TOOLCHAINS: ${{ matrix.stack }}
+          DOTNET_CLI_TELEMETRY_OPTOUT: "1"
+          DOTNET_NOLOGO: "1"
+        run: node e2e-toolchains-extra.mjs
