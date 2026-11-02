@@ -35,7 +35,11 @@ class CommandGuardConformance(unittest.TestCase):
         for case in CASES["blocked"]:
             cmd, args = case[0], case[1]
             with self.subTest(cmd=cmd, args=args):
-                self.assertEqual(self.verdict(cmd, args), "outside")
+                v = self.verdict(cmd, args)
+                # On Windows an argument cmd.exe would interpret (" % ^) is refused outright: stricter, still not allowed.
+                self.assertIn(v, ("outside", "blocked") if os.name == "nt" else ("outside",))
+                if v != "outside":
+                    continue
                 base = os.path.basename(cmd)
                 for ext in (".exe", ".cmd", ".bat", ".ps1"):
                     if base.lower().endswith(ext):

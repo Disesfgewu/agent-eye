@@ -103,3 +103,26 @@ jobs:
           PYTHONPATH: src
           AGENT_EYE_REQUIRE_PLAYWRIGHT: "1"
         run: python -m unittest discover -s tests -v
+
+  windows:
+    name: unit tests (windows)
+    # dev servers are spawned through cmd.exe on Windows: that path is only exercised here (Issue #27)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - name: Python unit tests
+        working-directory: packages/python
+        shell: bash
+        env:
+          PYTHONPATH: src
+        run: python -m unittest discover -s tests -v
