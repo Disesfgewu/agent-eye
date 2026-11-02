@@ -156,7 +156,8 @@ end
     async run() {
       const port = await freePort();
       write(ws, "tr-ok/Cargo.toml", '[package]\nname = "tr-ok"\nversion = "0.1.0"\nedition = "2021"\n\n[dependencies]\nwasm-bindgen = "0.2"\n');
-      write(ws, "tr-ok/src/main.rs", "fn main() {}\n");
+      // wasm-bindgen must actually be used, or trunk fails with "failed to find intrinsics".
+      write(ws, "tr-ok/src/main.rs", "use wasm_bindgen::prelude::*;\n\n#[wasm_bindgen(start)]\nfn start() {}\n\nfn main() {}\n");
       write(ws, "tr-ok/index.html", '<!DOCTYPE html><html><head><meta charset="utf-8"><link data-trunk rel="rust" data-wasm-opt="0" /></head><body>trunk-ok</body></html>\n');
       const det = textOf(await call("detect_project", { path: "tr-ok" }));
       check("trunk: detect_project suggests `trunk serve` for a wasm crate with index.html", /command="trunk" args=\["serve"\]|Rust/.test(det), det);
