@@ -1,6 +1,7 @@
 import type { BrowserContext, Page, ConsoleMessage } from "playwright";
 import { log } from "../logger.js";
 import { RingBuffer } from "./ring-buffer.js";
+import { PERF_COLLECT_SCRIPT, PERF_INIT_SCRIPT, type RawPerf } from "./perf.js";
 import { findPidsUsingDir } from "../reaper.js";
 import { BLOCKED_HOST_RESOLVER_RULES, isBlockedHost } from "../security/url-guard.js";
 import type { CookieInput } from "../security/state-guard.js";
@@ -726,7 +727,6 @@ export class BrowserManager {
     return this.page && !this.page.isClosed() ? await this.page.title().catch(() => "") : "";
   }
 
-  /** Origin of the current page (e.g. "http://localhost:3000"), for shortening URLs. */
   /** Attaches files to an <input type=file> (paths already validated by security/state-guard). */
   async setInputFiles(target: string, files: string[]): Promise<void> {
     const page = await this.ensurePage();
@@ -763,6 +763,37 @@ export class BrowserManager {
     });
   }
 
+  private readonly perfPages = new WeakSet<Page>();
+
+  /**
+   * One fresh, settled load of the current page (reload) or of `url`, with LCP / layout-shift /
+   * long-task observers installed before it starts. `cpuSlowdown` > 1 throttles the CPU (Chromium only).
+   */
+  async measurePerformance(url?: string, cpuSlowdown = 1): Promise<{ raw: RawPerf; url: string; how: "reloaded" | "navigated"; engine: string; cpuSlowdown: number }> {
+    const page = await this.ensurePage();
+    if (!url && (page.url() === "about:blank" || !page.url())) throw new Error("No page is open: pass a url or call browser_navigate first.");
+    if (!this.perfPages.has(page)) {
+      await page.addInitScript(PERF_INIT_SCRIPT);
+      this.perfPages.add(page);
+    }
+    const throttle = cpuSlowdown > 1 && this.engine === "chromium";
+    const client = throttle ? await page.context().newCDPSession(page) : undefined;
+    try {
+      if (client) await client.send("Emulation.setCPUThrottlingRate", { rate: cpuSlowdown });
+      if (url) await page.goto(url, { waitUntil: "load" });
+      else await page.reload({ waitUntil: "load" });
+      await page.waitForTimeout(1200); // let LCP / late layout shifts settle
+      const raw = (await page.evaluate(PERF_COLLECT_SCRIPT)) as RawPerf;
+      return { raw, url: page.url(), how: url ? "navigated" : "reloaded", engine: this.engine, cpuSlowdown: throttle ? cpuSlowdown : 1 };
+    } finally {
+      if (client) {
+        await client.send("Emulation.setCPUThrottlingRate", { rate: 1 }).catch(() => undefined);
+        await client.detach().catch(() => undefined);
+      }
+    }
+  }
+
+  /** Origin of the current page (e.g. "http://localhost:3000"), for shortening URLs. */
   currentOrigin(): string | undefined {
     const u = this.currentUrl();
     try {

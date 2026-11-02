@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **`browser_perf_summary`** (#39). Reloads the page (or opens an allowlisted URL) with LCP / layout-shift / long-task observers installed before it loads and returns, in about 120-170 tokens, TTFB, FCP, LCP with its element, CLS and TBT rated against web.dev thresholds, request count and size, and the slowest and largest requests; `cpuSlowdown` (chromium) throttles the CPU. It is a single lab run, not Lighthouse: no score, no raw trace, no heap snapshot. Firefox/WebKit report only the metrics their engines expose and mark the rest n/a. Fixed tool-definition cost +162 tokens in the full toolset (3,626 -> 3,788); `core` unchanged. Also refreshed `docs/ECOSYSTEM.md` (it still listed #36-#38 as gaps).
 - **`browser_set_storage` and `browser_upload_file`** (#38). Test logged-in apps and file-input forms: set/clear cookies, localStorage and sessionStorage of the current allowlisted page, and attach workspace files to an `<input type=file>`. Write-only and defensive by design: values are never echoed, logged or shown on the timeline (names only); cookie values cannot smuggle attributes; uploads are limited to regular files inside the workspace (symlinks resolved), 10 files / 25 MB each / 100 MB total, with secrets and tooling state refused (`.env*`, keys/certs, `.git/`, `.ssh/`, `.agent-eye/`, ...). Both are `sideEffect` actions. Fixed tool-definition cost +296 tokens in the full toolset; `AGENT_EYE_TOOLSET=core` is unchanged (2,176).
 
 ## 0.3.0 - 2026-11-02

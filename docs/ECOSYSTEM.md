@@ -65,10 +65,10 @@ vendors benchmark themselves; the only numbers we trust for decisions are ones f
 | Firefox / WebKit | ✅ | ❌ | ⚠️ (WebDriver/Safari) | ✅ `AGENT_EYE_BROWSER` (#5) |
 | Device emulation | ✅ | ✅ (`emulate`) | n/v | ✅ `AGENT_EYE_DEVICE` / `AGENT_EYE_VIEWPORT` (#5); `browser_resize` at runtime (#16) |
 | Attach to the user's running Chrome (CDP / extension) | ✅ | n/v | ✅ | ❌ (by design: dedicated profile; revisit with ownership rules) |
-| File upload, drag, multi-field form fill | ✅ | ✅ | ✅ (`upload`, `drag`, `batch`) | ❌ (needs a file-scope policy) |
-| Cookies / localStorage / storage state | ✅ (`--caps=storage`) | ❌ | ✅ | ❌ (sensitive; opt-in policy first) |
+| File upload, drag, multi-field form fill | ✅ | ✅ | ✅ (`upload`, `drag`, `batch`) | ⚠️ `browser_upload_file` (#38): workspace-confined, secrets refused; no drag; form fill via `browser_batch` |
+| Cookies / localStorage / storage state | ✅ (`--caps=storage`) | ❌ | ✅ | ⚠️ `browser_set_storage` (#38): write-only (no read-back), allowlisted pages only |
 | Network mocking / routing | ✅ (`--caps=network`) | ❌ | ✅ | ❌ |
-| Performance traces, Lighthouse, heap snapshots | trace/video | ✅ | ✅ (`trace`,`profiler`,`a11y`) | ❌ |
+| Performance traces, Lighthouse, heap snapshots | trace/video | ✅ | ✅ (`trace`,`profiler`,`a11y`) | ⚠️ `browser_perf_summary` (#39): TTFB/FCP/LCP/CLS/TBT + slowest/largest requests in ~150 tokens; no raw trace, Lighthouse score or heap snapshot |
 | PDF, video/screencast, test-code generation | ✅ (`--caps`, `--codegen`) | screencast | PDF, `record` (codegen n/v) | ❌ |
 | **Visible watch-along: cursor, narration banner, input lock** | ❌ | ❌ | dashboard | ✅ (unique) |
 | **Server-side permission policy** (allow/ask/deny per action category) | flags (`--allowed-origins`…) | ❌ | ✅ (`--action-policy`, `--confirm-actions`) | ✅ |
@@ -82,9 +82,9 @@ Agent Eye is **not** trying to be the broadest automation server — Playwright 
 *safe, watchable frontend debugging loops* (run the dev server, watch the agent work, enforce what it may do,
 measure what it costs). Suggested priorities, by value for that lane:
 
-1. **Finish the cheap wins** — `depth`/`find`, `--if-changed` screenshots, write-large-output-to-file.
-2. **Debugging depth** — Lighthouse/perf-trace, source-mapped console errors (DevTools MCP's strength); these are the most relevant gaps for a *debugging* tool.
-3. **Careful, opt-in capabilities** — file upload and storage access behind explicit policy categories; never default-on.
+1. **Finish the cheap wins** — ~~`depth`/`find`~~ (#36), ~~`--if-changed` screenshots~~ (#37) done; write-large-output-to-file still open.
+2. **Debugging depth** — a lab perf summary exists (#39); Lighthouse scores, raw traces and source-mapped console errors (DevTools MCP's strength) are still the most relevant gaps for a *debugging* tool.
+3. **Careful, opt-in capabilities** — file upload and storage writes shipped (#38) behind the `sideEffect` category with workspace confinement and no read-back; CDP attach (#40) still needs a threat model first.
 4. **Re-measure quarterly** with `usage_report` on a fixed set of tasks, and update §2.
 
 ## Sources
