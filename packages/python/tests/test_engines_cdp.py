@@ -62,6 +62,19 @@ class _QuietServer(http.server.ThreadingHTTPServer):
         pass
 
 
+def failed_network(agent, needle="169.254.169.254", seconds=10.0) -> str:
+    """The agent's failed-request list, polled until it mentions `needle`. The agent's sync Playwright only processes browser
+    events while it is inside a call, so a fixed sleep in the test is a race (it failed intermittently on CI)."""
+    out = ""
+    end = time.time() + seconds
+    while time.time() < end:
+        out = agent.call("network", failed_only=True)
+        if needle in out:
+            break
+        time.sleep(0.25)
+    return out
+
+
 class AgentError(Exception):
     pass
 
@@ -151,8 +164,7 @@ class EnginesAndDevices(_WebFixture):
             raise
         self.assertRegex(a.call("snapshot"), r'button "go" \[ref=(?:f\d+)?e\d+\]')
         a.call("navigate", self.web + "/imds")
-        time.sleep(0.8)
-        self.assertIn("169.254.169.254", a.call("network", failed_only=True), f"metadata hosts must be blocked on {engine} too")
+        self.assertIn("169.254.169.254", failed_network(a), f"metadata hosts must be blocked on {engine} too")
         perf = a.call("perf_summary")
         self.assertIn(f"{engine}, cpu x1", perf)
         if engine != "chromium":
@@ -231,8 +243,7 @@ class CdpAttach(_WebFixture):
         agent.call("wait_for", text="popup-from-agent", timeout_ms=4000)
 
         agent.call("navigate", self.web + "/imds")
-        time.sleep(0.8)
-        self.assertIn("169.254.169.254", agent.call("network", failed_only=True), "metadata requests blocked on the agent's tab")
+        self.assertIn("169.254.169.254", failed_network(agent), "metadata requests blocked on the agent's tab")
 
         injected = user_tab.evaluate("typeof window.__agentEyeLock === 'function' || !!document.getElementById('__agent_eye_status')")
         self.assertFalse(injected, "nothing is injected into the user's tab")
