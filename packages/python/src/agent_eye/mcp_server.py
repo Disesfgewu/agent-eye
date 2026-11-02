@@ -63,9 +63,11 @@ def main() -> None:
         return guarded(lambda: json.dumps(eye.navigate(url)))
 
     @mcp.tool()
-    def browser_snapshot() -> str:
-        """Return the page's accessibility snapshot (the agent's 'eyes')."""
-        return guarded(eye.snapshot)
+    def browser_snapshot(interactive: bool = False, selector: str = "", delta: bool = False,
+                         depth: int = 0, find: str = "", max_chars: int = 12000) -> str:
+        """Accessibility snapshot with [ref=eN] handles. Large pages: find (matching elements + ancestor path),
+        depth (first N levels), interactive (actionable only), selector (one subtree), delta (changes only)."""
+        return guarded(lambda: eye.snapshot(interactive, selector or None, delta, depth or None, find or None, max_chars))
 
     @mcp.tool()
     def browser_click(target: str) -> str:
@@ -83,14 +85,46 @@ def main() -> None:
         return guarded(lambda: (eye.type(target, text, submit), "typed")[1])
 
     @mcp.tool()
-    def browser_get_console_logs(limit: int = 100) -> str:
-        """Return recent browser console messages and page errors."""
-        return guarded(lambda: json.dumps(eye.get_console_logs(limit)))
+    def browser_get_console_logs(types: list = [], limit: int = 50, include_history: bool = False) -> str:
+        """Console messages and uncaught errors of the CURRENT page load (reset on navigation/reload), duplicates
+        collapsed (xN). types: error, warning, log, info, debug, dialog, popup."""
+        return guarded(lambda: eye.console(types or None, limit, include_history))
 
     @mcp.tool()
-    def browser_get_network_requests(limit: int = 60) -> str:
-        """Return recent network requests (sensitive headers redacted)."""
-        return guarded(lambda: json.dumps(eye.get_network_requests(limit)))
+    def browser_get_network_requests(failed_only: bool = False, url_contains: str = "", include_static: bool = False,
+                                     limit: int = 100, include_history: bool = False) -> str:
+        """One line per request of the CURRENT page load (static assets hidden unless failed). Start with failed_only."""
+        return guarded(lambda: eye.network(failed_only, url_contains or None, include_static, limit, include_history))
+
+    @mcp.tool()
+    def browser_press_key(key: str) -> str:
+        """Press a key or combo (e.g. Enter, Escape, Tab, Control+A). Enter may submit a form."""
+        return guarded(lambda: (eye.press_key(key), f"pressed {key}")[1])
+
+    @mcp.tool()
+    def browser_hover(target: str) -> str:
+        """Hover an element by ref or selector (menus, tooltips)."""
+        return guarded(lambda: (eye.hover(target), f"hovered {target}")[1])
+
+    @mcp.tool()
+    def browser_select_option(target: str, values: list) -> str:
+        """Choose option(s) in a <select> by value or label."""
+        return guarded(lambda: json.dumps(eye.select_option(target, values)))
+
+    @mcp.tool()
+    def browser_wait_for(text: str = "", text_gone: str = "", ms: int = 0, timeout_ms: int = 10000) -> str:
+        """Wait until text appears or disappears, and/or pause briefly (max 10s). Prefer this over re-polling snapshots."""
+        return guarded(lambda: (eye.wait_for(text or None, text_gone or None, ms, timeout_ms), "done waiting")[1])
+
+    @mcp.tool()
+    def browser_history(action: str) -> str:
+        """back, forward or reload (reload to re-verify after a code change)."""
+        return guarded(lambda: json.dumps(eye.history(action)))
+
+    @mcp.tool()
+    def browser_resize(width: int, height: int) -> str:
+        """Resize the viewport (responsive / mobile layout checks)."""
+        return guarded(lambda: (eye.resize(width, height), f"resized to {width}x{height}")[1])
 
     @mcp.tool()
     def detect_project(path: str = "") -> str:

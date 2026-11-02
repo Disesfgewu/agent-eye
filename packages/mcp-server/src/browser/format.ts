@@ -15,6 +15,14 @@ const INTERACTIVE_ROLES = new Set([
 
 const LINE_RE = /^(\s*)- ([a-z]+)\b(.*)$/;
 
+/** Element handles look like `e12`; newer Playwright prefixes the frame (`f1e12`) once several pages/frames are involved. */
+const REF_PATTERN = "(?:f\\d+)?e\\d+";
+
+/** `e12`, `ref=e12`, `aria-ref=f1e12` -> the bare handle; undefined when `target` is a selector. */
+export function parseRef(target: string): string | undefined {
+  return new RegExp(`^(?:ref=|aria-ref=)?(${REF_PATTERN})$`).exec(target.trim())?.[1];
+}
+
 /**
  * Reduces an AI-mode ARIA snapshot to a flat list of the elements an agent can
  * act on (plus headings/dialogs for orientation). Links keep their href inline
@@ -65,7 +73,7 @@ export function limitDepth(snapshot: string, depth: number): string {
       let nodes = 0;
       for (let j = i + 1; j < lines.length && level(lines[j]) > level(l); j++) if (LINE_RE.test(lines[j]) && !lines[j].trim().startsWith("- /")) nodes++;
       if (nodes > 0) {
-        const ref = /\[ref=(e\d+)\]/.exec(l)?.[1];
+        const ref = new RegExp(`\\[ref=(${REF_PATTERN})\\]`).exec(l)?.[1];
         out.push(`${l.replace(/:$/, "")} …(+${nodes} nodes${ref ? `, expand: selector=${ref}` : ""})`);
         continue;
       }

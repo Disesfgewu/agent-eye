@@ -1,0 +1,1723 @@
+{
+ "_comment": "Golden cases from the TypeScript reference (browser/format.ts); executed by the Node and Python suites. redact: 'identity' | 'secrets' (security/redaction redactText).",
+ "cases": [
+  {
+   "name": "filterInteractive: tree",
+   "fn": "filterInteractive",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026"
+   ],
+   "expect": "link \"Home\" [ref=e2] → /\nlink \"Shop\" [ref=e6] → /shop\nlink \"Blog\" [ref=e8] → /blog\nheading \"Checkout\" [level=1] [ref=e10]\ntextbox \"Card number\" [ref=e12]\nbutton \"Pay now\" [ref=e13]\nbutton \"Cancel\" [ref=e14]\ngeneric [ref=e20] [cursor=pointer]: Click me (div button)\ndialog \"Confirm\" [ref=e16]\nbutton \"OK\" [ref=e17]"
+  },
+  {
+   "name": "filterInteractive: tree2",
+   "fn": "filterInteractive",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Back\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026\n- alert [ref=e30]: Saved"
+   ],
+   "expect": "link \"Home\" [ref=e2] → /\nlink \"Shop\" [ref=e6] → /shop\nlink \"Blog\" [ref=e8] → /blog\nheading \"Checkout\" [level=1] [ref=e10]\ntextbox \"Card number\" [ref=e12]\nbutton \"Pay now\" [ref=e13]\nbutton \"Back\" [ref=e14]\ngeneric [ref=e20] [cursor=pointer]: Click me (div button)\ndialog \"Confirm\" [ref=e16]\nbutton \"OK\" [ref=e17]\nalert [ref=e30]: Saved"
+  },
+  {
+   "name": "filterInteractive: empty",
+   "fn": "filterInteractive",
+   "args": [
+    "- generic [ref=e1]"
+   ],
+   "expect": ""
+  },
+  {
+   "name": "filterInteractive: escaped-quotes",
+   "fn": "filterInteractive",
+   "args": [
+    "- main [ref=e1]:\n  - button \"Say \\\"hi\\\"\" [ref=e2]:\n  - button \"plain\" [ref=e3]"
+   ],
+   "expect": "button \"Say \\\"hi\\\"\" [ref=e2]\nbutton \"plain\" [ref=e3]"
+  },
+  {
+   "name": "limitDepth: depth 1",
+   "fn": "limitDepth",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026",
+    1
+   ],
+   "expect": "- banner [ref=e1] …(+7 nodes, expand: selector=e1)\n- main [ref=e9] …(+6 nodes, expand: selector=e9)\n- dialog \"Confirm\" [ref=e16] …(+1 nodes, expand: selector=e16)\n- contentinfo [ref=e15] …(+1 nodes, expand: selector=e15)"
+  },
+  {
+   "name": "limitDepth: depth 2",
+   "fn": "limitDepth",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026",
+    2
+   ],
+   "expect": "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n  - navigation \"Main\" [ref=e3] …(+5 nodes, expand: selector=e3)\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11] …(+4 nodes, expand: selector=e11)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026"
+  },
+  {
+   "name": "limitDepth: depth 3",
+   "fn": "limitDepth",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026",
+    3
+   ],
+   "expect": "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4] …(+4 nodes, expand: selector=e4)\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026"
+  },
+  {
+   "name": "limitDepth: depth 20",
+   "fn": "limitDepth",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026",
+    20
+   ],
+   "expect": "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026"
+  },
+  {
+   "name": "limitDepth: escaped quotes",
+   "fn": "limitDepth",
+   "args": [
+    "- main [ref=e1]:\n  - button \"Say \\\"hi\\\"\" [ref=e2]:\n  - button \"plain\" [ref=e3]",
+    1
+   ],
+   "expect": "- main [ref=e1] …(+2 nodes, expand: selector=e1)"
+  },
+  {
+   "name": "findInSnapshot: \"pay now\"",
+   "fn": "findInSnapshot",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026",
+    "pay now"
+   ],
+   "expect": "main > form \"Payment\" > button \"Pay now\" [ref=e13]"
+  },
+  {
+   "name": "findInSnapshot: \"BUTTON\"",
+   "fn": "findInSnapshot",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026",
+    "BUTTON"
+   ],
+   "expect": "main > form \"Payment\" > button \"Pay now\" [ref=e13]\nmain > form \"Payment\" > button \"Cancel\" [ref=e14]\nmain > form \"Payment\" > generic [ref=e20]: Click me (div button)\ndialog \"Confirm\" > button \"OK\" [ref=e17]"
+  },
+  {
+   "name": "findInSnapshot: \"shop\"",
+   "fn": "findInSnapshot",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026",
+    "shop"
+   ],
+   "expect": "banner > navigation \"Main\" > list > listitem > link \"Shop\" [ref=e6] → /shop"
+  },
+  {
+   "name": "findInSnapshot: \"e13\"",
+   "fn": "findInSnapshot",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026",
+    "e13"
+   ],
+   "expect": "main > form \"Payment\" > button \"Pay now\" [ref=e13]"
+  },
+  {
+   "name": "findInSnapshot: \"zzz\"",
+   "fn": "findInSnapshot",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026",
+    "zzz"
+   ],
+   "expect": "(no elements match \"zzz\")"
+  },
+  {
+   "name": "findInSnapshot: \"  \"",
+   "fn": "findInSnapshot",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026",
+    "  "
+   ],
+   "expect": "(empty find query)"
+  },
+  {
+   "name": "findInSnapshot: \"dialog\"",
+   "fn": "findInSnapshot",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026",
+    "dialog"
+   ],
+   "expect": "dialog \"Confirm\" [ref=e16]"
+  },
+  {
+   "name": "findInSnapshot: \"ok\"",
+   "fn": "findInSnapshot",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026",
+    "ok"
+   ],
+   "expect": "dialog \"Confirm\" > button \"OK\" [ref=e17]"
+  },
+  {
+   "name": "findInSnapshot: \"click me\"",
+   "fn": "findInSnapshot",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026",
+    "click me"
+   ],
+   "expect": "main > form \"Payment\" > generic [ref=e20]: Click me (div button)"
+  },
+  {
+   "name": "findInSnapshot: limit 2",
+   "fn": "findInSnapshot",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026",
+    "button",
+    2
+   ],
+   "expect": "main > form \"Payment\" > button \"Pay now\" [ref=e13]\nmain > form \"Payment\" > button \"Cancel\" [ref=e14]\n… 2 more matches; refine the query"
+  },
+  {
+   "name": "findInSnapshot: escaped quotes",
+   "fn": "findInSnapshot",
+   "args": [
+    "- main [ref=e1]:\n  - button \"Say \\\"hi\\\"\" [ref=e2]:\n  - button \"plain\" [ref=e3]",
+    "hi"
+   ],
+   "expect": "main > button \"Say \\\"hi\\\"\" [ref=e2]"
+  },
+  {
+   "name": "diffSnapshots: changed",
+   "fn": "diffSnapshots",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026",
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Back\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026\n- alert [ref=e30]: Saved"
+   ],
+   "expect": "- - button \"Cancel\" [ref=e14] [cursor=pointer]\n+ - button \"Back\" [ref=e14] [cursor=pointer]\n+ - alert [ref=e30]: Saved"
+  },
+  {
+   "name": "diffSnapshots: identical",
+   "fn": "diffSnapshots",
+   "args": [
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026",
+    "- banner [ref=e1]:\n  - link \"Home\" [ref=e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=e3]:\n    - list [ref=e4]:\n      - listitem [ref=e5]:\n        - link \"Shop\" [ref=e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=e7]:\n        - link \"Blog\" [ref=e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=e9]:\n  - heading \"Checkout\" [level=1] [ref=e10]\n  - form \"Payment\" [ref=e11]:\n    - textbox \"Card number\" [ref=e12]\n    - button \"Pay now\" [ref=e13] [cursor=pointer]\n    - button \"Cancel\" [ref=e14] [cursor=pointer]\n    - generic [ref=e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=e16]:\n  - button \"OK\" [ref=e17]\n- contentinfo [ref=e15]:\n  - text: © 2026"
+   ],
+   "expect": null
+  },
+  {
+   "name": "diffSnapshots: duplicate lines",
+   "fn": "diffSnapshots",
+   "args": [
+    "- a\n- a\n- b",
+    "- a\n- b\n- b"
+   ],
+   "expect": "- - a\n+ - b"
+  },
+  {
+   "name": "truncateText: fits",
+   "fn": "truncateText",
+   "args": [
+    "short",
+    100,
+    "hint"
+   ],
+   "expect": {
+    "text": "short",
+    "truncated": false
+   }
+  },
+  {
+   "name": "truncateText: cut at a line boundary",
+   "fn": "truncateText",
+   "args": [
+    "line 0 xxxxxxxxxxxxxxxxxxxx\nline 1 xxxxxxxxxxxxxxxxxxxx\nline 2 xxxxxxxxxxxxxxxxxxxx\nline 3 xxxxxxxxxxxxxxxxxxxx\nline 4 xxxxxxxxxxxxxxxxxxxx\nline 5 xxxxxxxxxxxxxxxxxxxx\nline 6 xxxxxxxxxxxxxxxxxxxx\nline 7 xxxxxxxxxxxxxxxxxxxx\nline 8 xxxxxxxxxxxxxxxxxxxx\nline 9 xxxxxxxxxxxxxxxxxxxx\nline 10 xxxxxxxxxxxxxxxxxxxx\nline 11 xxxxxxxxxxxxxxxxxxxx\nline 12 xxxxxxxxxxxxxxxxxxxx\nline 13 xxxxxxxxxxxxxxxxxxxx\nline 14 xxxxxxxxxxxxxxxxxxxx\nline 15 xxxxxxxxxxxxxxxxxxxx\nline 16 xxxxxxxxxxxxxxxxxxxx\nline 17 xxxxxxxxxxxxxxxxxxxx\nline 18 xxxxxxxxxxxxxxxxxxxx\nline 19 xxxxxxxxxxxxxxxxxxxx\nline 20 xxxxxxxxxxxxxxxxxxxx\nline 21 xxxxxxxxxxxxxxxxxxxx\nline 22 xxxxxxxxxxxxxxxxxxxx\nline 23 xxxxxxxxxxxxxxxxxxxx\nline 24 xxxxxxxxxxxxxxxxxxxx\nline 25 xxxxxxxxxxxxxxxxxxxx\nline 26 xxxxxxxxxxxxxxxxxxxx\nline 27 xxxxxxxxxxxxxxxxxxxx\nline 28 xxxxxxxxxxxxxxxxxxxx\nline 29 xxxxxxxxxxxxxxxxxxxx\nline 30 xxxxxxxxxxxxxxxxxxxx\nline 31 xxxxxxxxxxxxxxxxxxxx\nline 32 xxxxxxxxxxxxxxxxxxxx\nline 33 xxxxxxxxxxxxxxxxxxxx\nline 34 xxxxxxxxxxxxxxxxxxxx\nline 35 xxxxxxxxxxxxxxxxxxxx\nline 36 xxxxxxxxxxxxxxxxxxxx\nline 37 xxxxxxxxxxxxxxxxxxxx\nline 38 xxxxxxxxxxxxxxxxxxxx\nline 39 xxxxxxxxxxxxxxxxxxxx",
+    300,
+    "Narrow it."
+   ],
+   "expect": {
+    "text": "line 0 xxxxxxxxxxxxxxxxxxxx\nline 1 xxxxxxxxxxxxxxxxxxxx\nline 2 xxxxxxxxxxxxxxxxxxxx\nline 3 xxxxxxxxxxxxxxxxxxxx\nline 4 xxxxxxxxxxxxxxxxxxxx\nline 5 xxxxxxxxxxxxxxxxxxxx\nline 6 xxxxxxxxxxxxxxxxxxxx\nline 7 xxxxxxxxxxxxxxxxxxxx\nline 8 xxxxxxxxxxxxxxxxxxxx\nline 9 xxxxxxxxxxxxxxxxxxxx\n… truncated 870 chars. Narrow it.",
+    "truncated": true
+   }
+  },
+  {
+   "name": "truncateText: no newline to cut at",
+   "fn": "truncateText",
+   "args": [
+    "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy",
+    100,
+    "h"
+   ],
+   "expect": {
+    "text": "yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy\n… truncated 400 chars. h",
+    "truncated": true
+   }
+  },
+  {
+   "name": "parseRef: \"e12\"",
+   "fn": "parseRef",
+   "args": [
+    "e12"
+   ],
+   "expect": "e12"
+  },
+  {
+   "name": "parseRef: \"ref=e12\"",
+   "fn": "parseRef",
+   "args": [
+    "ref=e12"
+   ],
+   "expect": "e12"
+  },
+  {
+   "name": "parseRef: \"aria-ref=f1e12\"",
+   "fn": "parseRef",
+   "args": [
+    "aria-ref=f1e12"
+   ],
+   "expect": "f1e12"
+  },
+  {
+   "name": "parseRef: \" f2e3 \"",
+   "fn": "parseRef",
+   "args": [
+    " f2e3 "
+   ],
+   "expect": "f2e3"
+  },
+  {
+   "name": "parseRef: \"button\"",
+   "fn": "parseRef",
+   "args": [
+    "button"
+   ],
+   "expect": null
+  },
+  {
+   "name": "parseRef: \"#e12\"",
+   "fn": "parseRef",
+   "args": [
+    "#e12"
+   ],
+   "expect": null
+  },
+  {
+   "name": "parseRef: \"e\"",
+   "fn": "parseRef",
+   "args": [
+    "e"
+   ],
+   "expect": null
+  },
+  {
+   "name": "parseRef: \"f1\"",
+   "fn": "parseRef",
+   "args": [
+    "f1"
+   ],
+   "expect": null
+  },
+  {
+   "name": "parseRef: \"e12x\"",
+   "fn": "parseRef",
+   "args": [
+    "e12x"
+   ],
+   "expect": null
+  },
+  {
+   "name": "parseRef: \"css=.e1\"",
+   "fn": "parseRef",
+   "args": [
+    "css=.e1"
+   ],
+   "expect": null
+  },
+  {
+   "name": "parseRef: \"ref=\"",
+   "fn": "parseRef",
+   "args": [
+    "ref="
+   ],
+   "expect": null
+  },
+  {
+   "name": "parseRef: \"xe12\"",
+   "fn": "parseRef",
+   "args": [
+    "xe12"
+   ],
+   "expect": null
+  },
+  {
+   "name": "limitDepth: frame-prefixed refs",
+   "fn": "limitDepth",
+   "args": [
+    "- banner [ref=f1e1]:\n  - link \"Home\" [ref=f1e2] [cursor=pointer]:\n    - /url: /\n  - navigation \"Main\" [ref=f1e3]:\n    - list [ref=f1e4]:\n      - listitem [ref=f1e5]:\n        - link \"Shop\" [ref=f1e6] [cursor=pointer]:\n          - /url: /shop\n      - listitem [ref=f1e7]:\n        - link \"Blog\" [ref=f1e8] [cursor=pointer]:\n          - /url: /blog\n- main [ref=f1e9]:\n  - heading \"Checkout\" [level=1] [ref=f1e10]\n  - form \"Payment\" [ref=f1e11]:\n    - textbox \"Card number\" [ref=f1e12]\n    - button \"Pay now\" [ref=f1e13] [cursor=pointer]\n    - button \"Cancel\" [ref=f1e14] [cursor=pointer]\n    - generic [ref=f1e20] [cursor=pointer]: Click me (div button)\n- dialog \"Confirm\" [ref=f1e16]:\n  - button \"OK\" [ref=f1e17]\n- contentinfo [ref=f1e15]:\n  - text: © 2026",
+    2
+   ],
+   "expect": "- banner [ref=f1e1]:\n  - link \"Home\" [ref=f1e2] [cursor=pointer]:\n  - navigation \"Main\" [ref=f1e3] …(+5 nodes, expand: selector=f1e3)\n- main [ref=f1e9]:\n  - heading \"Checkout\" [level=1] [ref=f1e10]\n  - form \"Payment\" [ref=f1e11] …(+4 nodes, expand: selector=f1e11)\n- dialog \"Confirm\" [ref=f1e16]:\n  - button \"OK\" [ref=f1e17]\n- contentinfo [ref=f1e15]:\n  - text: © 2026"
+  },
+  {
+   "name": "formatConsole: everything",
+   "fn": "formatConsole",
+   "args": [
+    [
+     {
+      "type": "error",
+      "text": "Uncaught TypeError: x is undefined",
+      "epoch": 1,
+      "location": "http://localhost:3000/app.js:10:5"
+     },
+     {
+      "type": "log",
+      "text": "hello",
+      "epoch": 1
+     },
+     {
+      "type": "log",
+      "text": "hello",
+      "epoch": 1
+     },
+     {
+      "type": "log",
+      "text": "hello",
+      "epoch": 1
+     },
+     {
+      "type": "warning",
+      "text": "deprecated API",
+      "epoch": 1,
+      "location": "http://localhost:3000/lib.js:2:1"
+     },
+     {
+      "type": "error",
+      "text": "Failed to load resource: 404",
+      "epoch": 1,
+      "location": "http://localhost:3000/missing.png:0:0"
+     },
+     {
+      "type": "error",
+      "text": "Uncaught TypeError: x is undefined",
+      "epoch": 1,
+      "location": "http://localhost:3000/app.js:10:5"
+     },
+     {
+      "type": "dialog",
+      "text": "confirm: Delete?",
+      "epoch": 1
+     },
+     {
+      "type": "popup",
+      "text": "opened http://localhost:3000/pop",
+      "epoch": 1
+     },
+     {
+      "type": "warn",
+      "text": "legacy warn spelling",
+      "epoch": 1
+     }
+    ],
+    {
+     "limit": 50,
+     "origin": "http://localhost:3000"
+    }
+   ],
+   "expect": "[error] Uncaught TypeError: x is undefined  (/app.js:10:5)  ×2\n[log] hello  ×3\n[warning] deprecated API  (/lib.js:2:1)\n[error] Failed to load resource: 404  (/missing.png:0:0)\n[dialog] confirm: Delete?\n[popup] opened http://localhost:3000/pop\n[warn] legacy warn spelling"
+  },
+  {
+   "name": "formatConsole: errors only",
+   "fn": "formatConsole",
+   "args": [
+    [
+     {
+      "type": "error",
+      "text": "Uncaught TypeError: x is undefined",
+      "epoch": 1,
+      "location": "http://localhost:3000/app.js:10:5"
+     },
+     {
+      "type": "log",
+      "text": "hello",
+      "epoch": 1
+     },
+     {
+      "type": "log",
+      "text": "hello",
+      "epoch": 1
+     },
+     {
+      "type": "log",
+      "text": "hello",
+      "epoch": 1
+     },
+     {
+      "type": "warning",
+      "text": "deprecated API",
+      "epoch": 1,
+      "location": "http://localhost:3000/lib.js:2:1"
+     },
+     {
+      "type": "error",
+      "text": "Failed to load resource: 404",
+      "epoch": 1,
+      "location": "http://localhost:3000/missing.png:0:0"
+     },
+     {
+      "type": "error",
+      "text": "Uncaught TypeError: x is undefined",
+      "epoch": 1,
+      "location": "http://localhost:3000/app.js:10:5"
+     },
+     {
+      "type": "dialog",
+      "text": "confirm: Delete?",
+      "epoch": 1
+     },
+     {
+      "type": "popup",
+      "text": "opened http://localhost:3000/pop",
+      "epoch": 1
+     },
+     {
+      "type": "warn",
+      "text": "legacy warn spelling",
+      "epoch": 1
+     }
+    ],
+    {
+     "types": [
+      "error"
+     ],
+     "limit": 50
+    }
+   ],
+   "expect": "[error] Uncaught TypeError: x is undefined  (http://localhost:3000/app.js:10:5)  ×2\n[error] Failed to load resource: 404  (http://localhost:3000/missing.png:0:0)"
+  },
+  {
+   "name": "formatConsole: warn alias",
+   "fn": "formatConsole",
+   "args": [
+    [
+     {
+      "type": "error",
+      "text": "Uncaught TypeError: x is undefined",
+      "epoch": 1,
+      "location": "http://localhost:3000/app.js:10:5"
+     },
+     {
+      "type": "log",
+      "text": "hello",
+      "epoch": 1
+     },
+     {
+      "type": "log",
+      "text": "hello",
+      "epoch": 1
+     },
+     {
+      "type": "log",
+      "text": "hello",
+      "epoch": 1
+     },
+     {
+      "type": "warning",
+      "text": "deprecated API",
+      "epoch": 1,
+      "location": "http://localhost:3000/lib.js:2:1"
+     },
+     {
+      "type": "error",
+      "text": "Failed to load resource: 404",
+      "epoch": 1,
+      "location": "http://localhost:3000/missing.png:0:0"
+     },
+     {
+      "type": "error",
+      "text": "Uncaught TypeError: x is undefined",
+      "epoch": 1,
+      "location": "http://localhost:3000/app.js:10:5"
+     },
+     {
+      "type": "dialog",
+      "text": "confirm: Delete?",
+      "epoch": 1
+     },
+     {
+      "type": "popup",
+      "text": "opened http://localhost:3000/pop",
+      "epoch": 1
+     },
+     {
+      "type": "warn",
+      "text": "legacy warn spelling",
+      "epoch": 1
+     }
+    ],
+    {
+     "types": [
+      "warn"
+     ],
+     "limit": 50
+    }
+   ],
+   "expect": "[warning] deprecated API  (http://localhost:3000/lib.js:2:1)\n[warn] legacy warn spelling"
+  },
+  {
+   "name": "formatConsole: limit 2 keeps the most recent distinct",
+   "fn": "formatConsole",
+   "args": [
+    [
+     {
+      "type": "error",
+      "text": "Uncaught TypeError: x is undefined",
+      "epoch": 1,
+      "location": "http://localhost:3000/app.js:10:5"
+     },
+     {
+      "type": "log",
+      "text": "hello",
+      "epoch": 1
+     },
+     {
+      "type": "log",
+      "text": "hello",
+      "epoch": 1
+     },
+     {
+      "type": "log",
+      "text": "hello",
+      "epoch": 1
+     },
+     {
+      "type": "warning",
+      "text": "deprecated API",
+      "epoch": 1,
+      "location": "http://localhost:3000/lib.js:2:1"
+     },
+     {
+      "type": "error",
+      "text": "Failed to load resource: 404",
+      "epoch": 1,
+      "location": "http://localhost:3000/missing.png:0:0"
+     },
+     {
+      "type": "error",
+      "text": "Uncaught TypeError: x is undefined",
+      "epoch": 1,
+      "location": "http://localhost:3000/app.js:10:5"
+     },
+     {
+      "type": "dialog",
+      "text": "confirm: Delete?",
+      "epoch": 1
+     },
+     {
+      "type": "popup",
+      "text": "opened http://localhost:3000/pop",
+      "epoch": 1
+     },
+     {
+      "type": "warn",
+      "text": "legacy warn spelling",
+      "epoch": 1
+     }
+    ],
+    {
+     "limit": 2
+    }
+   ],
+   "expect": "(5 older distinct messages omitted; raise limit)\n[popup] opened http://localhost:3000/pop\n[warn] legacy warn spelling"
+  },
+  {
+   "name": "formatConsole: none",
+   "fn": "formatConsole",
+   "args": [
+    [],
+    {
+     "limit": 5
+    }
+   ],
+   "expect": "(no console messages)"
+  },
+  {
+   "name": "formatConsole: type filter with no match",
+   "fn": "formatConsole",
+   "args": [
+    [
+     {
+      "type": "error",
+      "text": "Uncaught TypeError: x is undefined",
+      "epoch": 1,
+      "location": "http://localhost:3000/app.js:10:5"
+     },
+     {
+      "type": "log",
+      "text": "hello",
+      "epoch": 1
+     },
+     {
+      "type": "log",
+      "text": "hello",
+      "epoch": 1
+     },
+     {
+      "type": "log",
+      "text": "hello",
+      "epoch": 1
+     },
+     {
+      "type": "warning",
+      "text": "deprecated API",
+      "epoch": 1,
+      "location": "http://localhost:3000/lib.js:2:1"
+     },
+     {
+      "type": "error",
+      "text": "Failed to load resource: 404",
+      "epoch": 1,
+      "location": "http://localhost:3000/missing.png:0:0"
+     },
+     {
+      "type": "error",
+      "text": "Uncaught TypeError: x is undefined",
+      "epoch": 1,
+      "location": "http://localhost:3000/app.js:10:5"
+     },
+     {
+      "type": "dialog",
+      "text": "confirm: Delete?",
+      "epoch": 1
+     },
+     {
+      "type": "popup",
+      "text": "opened http://localhost:3000/pop",
+      "epoch": 1
+     },
+     {
+      "type": "warn",
+      "text": "legacy warn spelling",
+      "epoch": 1
+     }
+    ],
+    {
+     "types": [
+      "debug"
+     ],
+     "limit": 5
+    }
+   ],
+   "expect": "(no console messages)"
+  },
+  {
+   "name": "formatNetwork: default hides static assets",
+   "fn": "formatNetwork",
+   "args": [
+    [
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/",
+      "status": 200,
+      "resourceType": "document",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/app.js",
+      "status": 200,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/style.css",
+      "status": 200,
+      "resourceType": "stylesheet",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/logo.png",
+      "status": 200,
+      "resourceType": "image",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "POST",
+      "url": "http://localhost:3000/api/login",
+      "status": 401,
+      "resourceType": "xhr",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/missing.js",
+      "status": 404,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "https://cdn.example.com/lib.js",
+      "status": 0,
+      "resourceType": "script",
+      "epoch": 1,
+      "failure": "net::ERR_NAME_NOT_RESOLVED"
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/slow",
+      "status": 500,
+      "resourceType": "fetch",
+      "epoch": 1
+     }
+    ],
+    {
+     "limit": 100,
+     "origin": "http://localhost:3000",
+     "redact": "identity"
+    }
+   ],
+   "expect": "GET 200 document /\nGET 200 fetch /api/items?token=SECRET123&page=1  ×2\nPOST 401 xhr /api/login\nGET 404 script /missing.js\nGET FAILED(net::ERR_NAME_NOT_RESOLVED) script https://cdn.example.com/lib.js\nGET 500 fetch /api/slow\n(3 static assets hidden (ok); pass includeStatic to see them)"
+  },
+  {
+   "name": "formatNetwork: failed only",
+   "fn": "formatNetwork",
+   "args": [
+    [
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/",
+      "status": 200,
+      "resourceType": "document",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/app.js",
+      "status": 200,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/style.css",
+      "status": 200,
+      "resourceType": "stylesheet",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/logo.png",
+      "status": 200,
+      "resourceType": "image",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "POST",
+      "url": "http://localhost:3000/api/login",
+      "status": 401,
+      "resourceType": "xhr",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/missing.js",
+      "status": 404,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "https://cdn.example.com/lib.js",
+      "status": 0,
+      "resourceType": "script",
+      "epoch": 1,
+      "failure": "net::ERR_NAME_NOT_RESOLVED"
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/slow",
+      "status": 500,
+      "resourceType": "fetch",
+      "epoch": 1
+     }
+    ],
+    {
+     "limit": 100,
+     "origin": "http://localhost:3000",
+     "failedOnly": true,
+     "redact": "identity"
+    }
+   ],
+   "expect": "POST 401 xhr /api/login\nGET 404 script /missing.js\nGET FAILED(net::ERR_NAME_NOT_RESOLVED) script https://cdn.example.com/lib.js\nGET 500 fetch /api/slow"
+  },
+  {
+   "name": "formatNetwork: include static",
+   "fn": "formatNetwork",
+   "args": [
+    [
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/",
+      "status": 200,
+      "resourceType": "document",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/app.js",
+      "status": 200,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/style.css",
+      "status": 200,
+      "resourceType": "stylesheet",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/logo.png",
+      "status": 200,
+      "resourceType": "image",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "POST",
+      "url": "http://localhost:3000/api/login",
+      "status": 401,
+      "resourceType": "xhr",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/missing.js",
+      "status": 404,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "https://cdn.example.com/lib.js",
+      "status": 0,
+      "resourceType": "script",
+      "epoch": 1,
+      "failure": "net::ERR_NAME_NOT_RESOLVED"
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/slow",
+      "status": 500,
+      "resourceType": "fetch",
+      "epoch": 1
+     }
+    ],
+    {
+     "limit": 100,
+     "origin": "http://localhost:3000",
+     "includeStatic": true,
+     "redact": "identity"
+    }
+   ],
+   "expect": "GET 200 document /\nGET 200 script /app.js\nGET 200 stylesheet /style.css\nGET 200 image /logo.png\nGET 200 fetch /api/items?token=SECRET123&page=1  ×2\nPOST 401 xhr /api/login\nGET 404 script /missing.js\nGET FAILED(net::ERR_NAME_NOT_RESOLVED) script https://cdn.example.com/lib.js\nGET 500 fetch /api/slow"
+  },
+  {
+   "name": "formatNetwork: url filter",
+   "fn": "formatNetwork",
+   "args": [
+    [
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/",
+      "status": 200,
+      "resourceType": "document",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/app.js",
+      "status": 200,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/style.css",
+      "status": 200,
+      "resourceType": "stylesheet",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/logo.png",
+      "status": 200,
+      "resourceType": "image",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "POST",
+      "url": "http://localhost:3000/api/login",
+      "status": 401,
+      "resourceType": "xhr",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/missing.js",
+      "status": 404,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "https://cdn.example.com/lib.js",
+      "status": 0,
+      "resourceType": "script",
+      "epoch": 1,
+      "failure": "net::ERR_NAME_NOT_RESOLVED"
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/slow",
+      "status": 500,
+      "resourceType": "fetch",
+      "epoch": 1
+     }
+    ],
+    {
+     "limit": 100,
+     "origin": "http://localhost:3000",
+     "urlContains": "API",
+     "redact": "identity"
+    }
+   ],
+   "expect": "GET 200 fetch /api/items?token=SECRET123&page=1  ×2\nPOST 401 xhr /api/login\nGET 500 fetch /api/slow"
+  },
+  {
+   "name": "formatNetwork: limit 2",
+   "fn": "formatNetwork",
+   "args": [
+    [
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/",
+      "status": 200,
+      "resourceType": "document",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/app.js",
+      "status": 200,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/style.css",
+      "status": 200,
+      "resourceType": "stylesheet",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/logo.png",
+      "status": 200,
+      "resourceType": "image",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "POST",
+      "url": "http://localhost:3000/api/login",
+      "status": 401,
+      "resourceType": "xhr",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/missing.js",
+      "status": 404,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "https://cdn.example.com/lib.js",
+      "status": 0,
+      "resourceType": "script",
+      "epoch": 1,
+      "failure": "net::ERR_NAME_NOT_RESOLVED"
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/slow",
+      "status": 500,
+      "resourceType": "fetch",
+      "epoch": 1
+     }
+    ],
+    {
+     "limit": 2,
+     "origin": "http://localhost:3000",
+     "redact": "identity"
+    }
+   ],
+   "expect": "GET FAILED(net::ERR_NAME_NOT_RESOLVED) script https://cdn.example.com/lib.js\nGET 500 fetch /api/slow\n(4 older distinct requests omitted; raise limit; 3 static assets hidden (ok); pass includeStatic to see them)"
+  },
+  {
+   "name": "formatNetwork: no origin",
+   "fn": "formatNetwork",
+   "args": [
+    [
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/",
+      "status": 200,
+      "resourceType": "document",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/app.js",
+      "status": 200,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/style.css",
+      "status": 200,
+      "resourceType": "stylesheet",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/logo.png",
+      "status": 200,
+      "resourceType": "image",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "POST",
+      "url": "http://localhost:3000/api/login",
+      "status": 401,
+      "resourceType": "xhr",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/missing.js",
+      "status": 404,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "https://cdn.example.com/lib.js",
+      "status": 0,
+      "resourceType": "script",
+      "epoch": 1,
+      "failure": "net::ERR_NAME_NOT_RESOLVED"
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/slow",
+      "status": 500,
+      "resourceType": "fetch",
+      "epoch": 1
+     }
+    ],
+    {
+     "limit": 100,
+     "redact": "identity"
+    }
+   ],
+   "expect": "GET 200 document http://localhost:3000/\nGET 200 fetch http://localhost:3000/api/items?token=SECRET123&page=1  ×2\nPOST 401 xhr http://localhost:3000/api/login\nGET 404 script http://localhost:3000/missing.js\nGET FAILED(net::ERR_NAME_NOT_RESOLVED) script https://cdn.example.com/lib.js\nGET 500 fetch http://localhost:3000/api/slow\n(3 static assets hidden (ok); pass includeStatic to see them)"
+  },
+  {
+   "name": "formatNetwork: secrets redacted",
+   "fn": "formatNetwork",
+   "args": [
+    [
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/",
+      "status": 200,
+      "resourceType": "document",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/app.js",
+      "status": 200,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/style.css",
+      "status": 200,
+      "resourceType": "stylesheet",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/logo.png",
+      "status": 200,
+      "resourceType": "image",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "POST",
+      "url": "http://localhost:3000/api/login",
+      "status": 401,
+      "resourceType": "xhr",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/missing.js",
+      "status": 404,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "https://cdn.example.com/lib.js",
+      "status": 0,
+      "resourceType": "script",
+      "epoch": 1,
+      "failure": "net::ERR_NAME_NOT_RESOLVED"
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/slow",
+      "status": 500,
+      "resourceType": "fetch",
+      "epoch": 1
+     }
+    ],
+    {
+     "limit": 100,
+     "origin": "http://localhost:3000",
+     "includeStatic": true,
+     "redact": "secrets"
+    }
+   ],
+   "expect": "GET 200 document /\nGET 200 script /app.js\nGET 200 stylesheet /style.css\nGET 200 image /logo.png\nGET 200 fetch /api/items?token=<redacted>&page=1  ×2\nPOST 401 xhr /api/login\nGET 404 script /missing.js\nGET FAILED(net::ERR_NAME_NOT_RESOLVED) script https://cdn.example.com/lib.js\nGET 500 fetch /api/slow"
+  },
+  {
+   "name": "formatNetwork: nothing matches",
+   "fn": "formatNetwork",
+   "args": [
+    [
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/",
+      "status": 200,
+      "resourceType": "document",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/app.js",
+      "status": 200,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/style.css",
+      "status": 200,
+      "resourceType": "stylesheet",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/logo.png",
+      "status": 200,
+      "resourceType": "image",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "POST",
+      "url": "http://localhost:3000/api/login",
+      "status": 401,
+      "resourceType": "xhr",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/missing.js",
+      "status": 404,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "https://cdn.example.com/lib.js",
+      "status": 0,
+      "resourceType": "script",
+      "epoch": 1,
+      "failure": "net::ERR_NAME_NOT_RESOLVED"
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/slow",
+      "status": 500,
+      "resourceType": "fetch",
+      "epoch": 1
+     }
+    ],
+    {
+     "limit": 5,
+     "urlContains": "zzz",
+     "redact": "identity"
+    }
+   ],
+   "expect": "(no matching requests)"
+  },
+  {
+   "name": "selectNetwork: counts hidden static",
+   "fn": "selectNetwork",
+   "args": [
+    [
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/",
+      "status": 200,
+      "resourceType": "document",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/app.js",
+      "status": 200,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/style.css",
+      "status": 200,
+      "resourceType": "stylesheet",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/logo.png",
+      "status": 200,
+      "resourceType": "image",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "POST",
+      "url": "http://localhost:3000/api/login",
+      "status": 401,
+      "resourceType": "xhr",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/missing.js",
+      "status": 404,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "https://cdn.example.com/lib.js",
+      "status": 0,
+      "resourceType": "script",
+      "epoch": 1,
+      "failure": "net::ERR_NAME_NOT_RESOLVED"
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/slow",
+      "status": 500,
+      "resourceType": "fetch",
+      "epoch": 1
+     }
+    ],
+    {
+     "limit": 5,
+     "redact": "identity"
+    }
+   ],
+   "expect": {
+    "shown": [
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/",
+      "status": 200,
+      "resourceType": "document",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+      "status": 200,
+      "resourceType": "fetch",
+      "epoch": 1
+     },
+     {
+      "method": "POST",
+      "url": "http://localhost:3000/api/login",
+      "status": 401,
+      "resourceType": "xhr",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/missing.js",
+      "status": 404,
+      "resourceType": "script",
+      "epoch": 1
+     },
+     {
+      "method": "GET",
+      "url": "https://cdn.example.com/lib.js",
+      "status": 0,
+      "resourceType": "script",
+      "epoch": 1,
+      "failure": "net::ERR_NAME_NOT_RESOLVED"
+     },
+     {
+      "method": "GET",
+      "url": "http://localhost:3000/api/slow",
+      "status": 500,
+      "resourceType": "fetch",
+      "epoch": 1
+     }
+    ],
+    "hiddenStatic": 3
+   }
+  },
+  {
+   "name": "formatHealth: errors and failures",
+   "fn": "formatHealth",
+   "args": [
+    {
+     "url": "http://localhost:3000/",
+     "title": "Shop",
+     "console": [
+      {
+       "type": "error",
+       "text": "Uncaught TypeError: x is undefined",
+       "epoch": 1,
+       "location": "http://localhost:3000/app.js:10:5"
+      },
+      {
+       "type": "log",
+       "text": "hello",
+       "epoch": 1
+      },
+      {
+       "type": "log",
+       "text": "hello",
+       "epoch": 1
+      },
+      {
+       "type": "log",
+       "text": "hello",
+       "epoch": 1
+      },
+      {
+       "type": "warning",
+       "text": "deprecated API",
+       "epoch": 1,
+       "location": "http://localhost:3000/lib.js:2:1"
+      },
+      {
+       "type": "error",
+       "text": "Failed to load resource: 404",
+       "epoch": 1,
+       "location": "http://localhost:3000/missing.png:0:0"
+      },
+      {
+       "type": "error",
+       "text": "Uncaught TypeError: x is undefined",
+       "epoch": 1,
+       "location": "http://localhost:3000/app.js:10:5"
+      },
+      {
+       "type": "dialog",
+       "text": "confirm: Delete?",
+       "epoch": 1
+      },
+      {
+       "type": "popup",
+       "text": "opened http://localhost:3000/pop",
+       "epoch": 1
+      },
+      {
+       "type": "warn",
+       "text": "legacy warn spelling",
+       "epoch": 1
+      }
+     ],
+     "network": [
+      {
+       "method": "GET",
+       "url": "http://localhost:3000/",
+       "status": 200,
+       "resourceType": "document",
+       "epoch": 1
+      },
+      {
+       "method": "GET",
+       "url": "http://localhost:3000/app.js",
+       "status": 200,
+       "resourceType": "script",
+       "epoch": 1
+      },
+      {
+       "method": "GET",
+       "url": "http://localhost:3000/style.css",
+       "status": 200,
+       "resourceType": "stylesheet",
+       "epoch": 1
+      },
+      {
+       "method": "GET",
+       "url": "http://localhost:3000/logo.png",
+       "status": 200,
+       "resourceType": "image",
+       "epoch": 1
+      },
+      {
+       "method": "GET",
+       "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+       "status": 200,
+       "resourceType": "fetch",
+       "epoch": 1
+      },
+      {
+       "method": "GET",
+       "url": "http://localhost:3000/api/items?token=SECRET123&page=1",
+       "status": 200,
+       "resourceType": "fetch",
+       "epoch": 1
+      },
+      {
+       "method": "POST",
+       "url": "http://localhost:3000/api/login",
+       "status": 401,
+       "resourceType": "xhr",
+       "epoch": 1
+      },
+      {
+       "method": "GET",
+       "url": "http://localhost:3000/missing.js",
+       "status": 404,
+       "resourceType": "script",
+       "epoch": 1
+      },
+      {
+       "method": "GET",
+       "url": "https://cdn.example.com/lib.js",
+       "status": 0,
+       "resourceType": "script",
+       "epoch": 1,
+       "failure": "net::ERR_NAME_NOT_RESOLVED"
+      },
+      {
+       "method": "GET",
+       "url": "http://localhost:3000/api/slow",
+       "status": 500,
+       "resourceType": "fetch",
+       "epoch": 1
+      }
+     ],
+     "origin": "http://localhost:3000",
+     "redact": "identity"
+    }
+   ],
+   "expect": "URL: http://localhost:3000/\nTitle: Shop   Document: 200\nConsole: 3 error(s), 2 warning(s)\n[error] Uncaught TypeError: x is undefined  (/app.js:10:5)  ×2\n[error] Failed to load resource: 404  (/missing.png:0:0)\nNetwork: 4 failed of 10 request(s)\nPOST 401 xhr /api/login\nGET 404 script /missing.js\nGET FAILED(net::ERR_NAME_NOT_RESOLVED) script https://cdn.example.com/lib.js\nGET 500 fetch /api/slow"
+  },
+  {
+   "name": "formatHealth: warnings only",
+   "fn": "formatHealth",
+   "args": [
+    {
+     "url": "http://localhost:3000/",
+     "title": "",
+     "console": [
+      {
+       "type": "warning",
+       "text": "w1",
+       "epoch": 1
+      },
+      {
+       "type": "log",
+       "text": "l",
+       "epoch": 1
+      }
+     ],
+     "network": [
+      {
+       "method": "GET",
+       "url": "http://localhost:3000/",
+       "status": 200,
+       "resourceType": "document",
+       "epoch": 1
+      }
+     ],
+     "origin": "http://localhost:3000",
+     "redact": "identity"
+    }
+   ],
+   "expect": "URL: http://localhost:3000/\nTitle: (none)   Document: 200\nConsole: 0 error(s), 1 warning(s)\n[warning] w1\nNetwork: 0 failed of 1 request(s)"
+  },
+  {
+   "name": "formatHealth: clean page",
+   "fn": "formatHealth",
+   "args": [
+    {
+     "url": "http://localhost:3000/",
+     "title": "OK",
+     "console": [],
+     "network": [
+      {
+       "method": "GET",
+       "url": "http://localhost:3000/",
+       "status": 200,
+       "resourceType": "document",
+       "epoch": 1
+      }
+     ],
+     "redact": "identity"
+    }
+   ],
+   "expect": "URL: http://localhost:3000/\nTitle: OK   Document: 200\nConsole: 0 error(s), 0 warning(s)\nNetwork: 0 failed of 1 request(s)"
+  }
+ ]
+}
