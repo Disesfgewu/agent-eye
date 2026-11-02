@@ -12,7 +12,9 @@ license = { text = "Apache-2.0" }
 authors = [{ name = "Agent Eye" }]
 keywords = ["ai", "agent", "browser", "automation", "mcp", "playwright", "frontend", "debugging"]
 dependencies = [
-    "playwright>=1.40",
+    # Element refs ([ref=eN]) come from aria_snapshot(mode="ai"). 1.60.0 is the oldest release verified (CI, Python 3.9);
+    # older ones are untested and may return snapshots without refs.
+    "playwright>=1.60",
 ]
 
 [project.optional-dependencies]

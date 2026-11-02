@@ -119,6 +119,7 @@ class AgentEye:
         self._epoch = 0
         self._attached = weakref.WeakSet()
         self._last_snapshot = None  # (key, text) of the previous snapshot, for delta=True
+        self._no_refs = False  # set when this Playwright cannot emit [ref=eN] handles
         self._shots = OrderedDict()  # key -> (sha256, last seen), for screenshot(if_changed=True); bounded
         self._perf_pages = weakref.WeakSet()
         # confirm()/prompt() are dismissed unless AGENT_EYE_DIALOG=accept; alert()/beforeunload only inform.
@@ -302,6 +303,10 @@ class AgentEye:
             diff = fmt.diff_snapshots(previous, body)
             body = "(no changes since last snapshot)" if diff is None else f"(changes since last snapshot)\n{diff}"
         capped = fmt.truncate_text(body, max_chars, "Narrow with selector, find, depth, interactive=true or delta=true.")
+        if self._no_refs:
+            hint += "
+
+Note: this Playwright version cannot emit [ref=eN] handles; upgrade playwright (>=1.60) or target elements with selectors."
         return _frame(page.url, capped["text"]) + hint
 
     def _aria(self, page, selector: Optional[str]) -> str:
@@ -310,6 +315,7 @@ class AgentEye:
             # mode="ai" adds the [ref=eN] handles that click/type targets rely on (Playwright >= 1.5x).
             return loc.aria_snapshot(mode="ai")
         except TypeError:
+            self._no_refs = True
             return loc.aria_snapshot()  # older Playwright: no refs
         except Exception:
             if selector:
