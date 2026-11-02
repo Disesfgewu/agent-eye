@@ -52,7 +52,8 @@ class McpServer(unittest.TestCase):
                     await session.initialize()
                     names = {t.name for t in (await session.list_tools()).tools}
                     for want in ("browser_navigate", "browser_snapshot", "browser_verify_page", "browser_batch", "browser_press_key",
-                                 "browser_history", "detect_project", "start_dev_server", "usage_report"):
+                                 "browser_history", "detect_project", "start_dev_server", "usage_report", "browser_screenshot",
+                                 "browser_set_storage", "browser_upload_file", "browser_perf_summary", "browser_close", "browser_show_status"):
                         self.assertIn(want, names)
                     verify = text_of(await session.call_tool("browser_verify_page", {"url": f"http://127.0.0.1:{port}/", "snapshot": "none"}))
                     self.assertIn("Title: mcp", verify)
@@ -63,6 +64,15 @@ class McpServer(unittest.TestCase):
                     self.assertIn("No runnable project found", detected)
                     blocked = text_of(await session.call_tool("browser_navigate", {"url": "file:///etc/passwd"}))
                     self.assertIn("blocked", blocked.lower())
+                    shot = await session.call_tool("browser_screenshot", {"if_changed": True})
+                    self.assertEqual([c.type for c in shot.content], ["text", "image"], "first shot returns the image")
+                    again = await session.call_tool("browser_screenshot", {"if_changed": True})
+                    self.assertEqual([c.type for c in again.content], ["text"], "identical page: one line, no image")
+                    self.assertIn("unchanged", text_of(again))
+                    perf = text_of(await session.call_tool("browser_perf_summary", {}))
+                    self.assertIn("Perf http://127.0.0.1:", perf)
+                    bad = text_of(await session.call_tool("browser_set_storage", {"cookies": [{"name": "a", "value": "v; x=y"}]}))
+                    self.assertIn("Not set", bad)
                     report = text_of(await session.call_tool("usage_report", {}))
                     return report
 
@@ -73,6 +83,8 @@ class McpServer(unittest.TestCase):
         self.assertRegex(report, r"Tool definitions \(fixed per session\): ~[\d,]+ tokens, \d+ tools")
         self.assertIn("browser_verify_page | 1 |", report)
         self.assertIn("browser_snapshot | 1 |", report)
+        shot_row = next(line for line in report.splitlines() if line.startswith("browser_screenshot |"))
+        self.assertLess(int(shot_row.split("|")[2].strip().replace(",", "")), 2500, "images are priced by size, not by base64 length")
         usage = os.path.join(ws, ".agent-artifacts", "usage.json")
         self.assertTrue(os.path.exists(usage), "the ledger is flushed when the server exits")
         with open(usage, encoding="utf-8") as f:

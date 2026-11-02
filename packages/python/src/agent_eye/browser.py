@@ -12,10 +12,12 @@ model. Example:
 """
 from __future__ import annotations
 
+import hashlib
 import os
 import re
+import time
 import weakref
-from collections import deque
+from collections import OrderedDict, deque
 from datetime import datetime, timezone
 from typing import Callable, Optional
 
@@ -24,6 +26,8 @@ from .devserver import DevServerManager
 from . import guards
 from . import detect as detect_mod
 from . import format as fmt
+from . import perf as perf_mod
+from . import state_guard
 from .ready import extract_ports, port_open, wait_for_port
 
 CONSOLE_CAPACITY = 500
@@ -115,6 +119,8 @@ class AgentEye:
         self._epoch = 0
         self._attached = weakref.WeakSet()
         self._last_snapshot = None  # (key, text) of the previous snapshot, for delta=True
+        self._shots = OrderedDict()  # key -> (sha256, last seen), for screenshot(if_changed=True); bounded
+        self._perf_pages = weakref.WeakSet()
         # confirm()/prompt() are dismissed unless AGENT_EYE_DIALOG=accept; alert()/beforeunload only inform.
         self._dialog_accept = os.environ.get("AGENT_EYE_DIALOG") == "accept"
         self._dev = DevServerManager()
@@ -125,6 +131,16 @@ class AgentEye:
 
     def __exit__(self, *exc):
         self.close()
+
+    def close_browser(self) -> None:
+        """Close the browser only (dev servers keep running); it reopens on the next browser tool call."""
+        if self._context is not None:
+            try:
+                self._context.close()
+            except Exception:
+                pass
+            self._context = None
+            self._page = None
 
     def close(self):
         self._dev.stop_all()
@@ -330,14 +346,46 @@ class AgentEye:
         if submit:
             loc.press("Enter")
 
-    def screenshot(self, full_page: bool = False, save_path: Optional[str] = None) -> bytes:
+    def screenshot(self, full_page: bool = False, save_path: Optional[str] = None, selector: Optional[str] = None) -> bytes:
+        """PNG of the viewport (or the whole page, or one element: ``selector`` crops = fewer image tokens)."""
         self.gate.check("observe", "Take screenshot")
-        page = self._ensure_page()
-        data = page.screenshot(full_page=full_page, type="png", scale="css")
+        data = self._capture(full_page, selector, stable=False)
         if save_path:
             with open(save_path, "wb") as f:
                 f.write(data)
         return data
+
+    def _capture(self, full_page: bool, selector: Optional[str], stable: bool) -> bytes:
+        page = self._ensure_page()
+        # `stable` freezes animations and the text caret for the capture only, so an unchanged static page
+        # produces identical bytes (used by screenshot_if_changed).
+        steady = {"animations": "disabled", "caret": "hide"} if stable else {}
+        if selector:
+            data = self._locate(page, selector).first.screenshot(type="png", scale="css", timeout=10000, **steady)
+        else:
+            data = page.screenshot(full_page=full_page, type="png", scale="css", **steady)
+        self._remember_shot(f"{page.url}|{'full' if full_page else 'view'}|{selector or ''}", data)
+        return data
+
+    def _remember_shot(self, key: str, data: bytes) -> None:
+        self._shots.pop(key, None)
+        self._shots[key] = (hashlib.sha256(data).hexdigest(), time.time())
+        while len(self._shots) > 20:
+            self._shots.popitem(last=False)
+
+    def screenshot_if_changed(self, full_page: bool = False, selector: Optional[str] = None):
+        """(png, note): png is None when the page is byte-identical to the previous screenshot of the same
+        page/scope; note then says how long ago, so the caller can answer in one line (~29 tokens) instead of
+        resending an image (~1.4k). Pages with a live clock/video/animation always count as changed."""
+        self.gate.check("observe", "Take screenshot")
+        page = self._ensure_page()
+        key = f"{page.url}|{'full' if full_page else 'view'}|{selector or ''}"
+        before = self._shots.get(key)
+        data = self._capture(full_page, selector, stable=True)
+        if before and before[0] == hashlib.sha256(data).hexdigest():
+            self._shots[key] = (before[0], time.time())
+            return None, f"Screenshot unchanged since {max(0, round(time.time() - before[1]))}s ago; image not resent."
+        return data, "Screenshot captured."
 
     def get_console_logs(self, limit: Optional[int] = None) -> list:
         self.gate.check("observe", "Read console logs")
@@ -442,6 +490,90 @@ class AgentEye:
             raise ValueError("width/height must be within 200-3840 x 200-2400")
         self.gate.check("interact", f"Resize to {width}x{height}")
         self._ensure_page().set_viewport_size({"width": int(width), "height": int(height)})
+
+    # -- state tools (Issue #38) -------------------------------------------
+    def _allowlisted_page(self):
+        page = self._ensure_page()
+        if not page.url or page.url == "about:blank":
+            raise ValueError("Open a page first (navigate).")
+        if guards.classify_url(page.url, self.policy.navigation_allowlist)[0] != "allowlisted":
+            raise guards_error("This tool only works on pages whose host is in the navigation allowlist.")
+        return page
+
+    def set_storage(self, cookies=None, local_storage=None, session_storage=None, clear: bool = False) -> str:
+        """Set (or first clear) cookies / localStorage / sessionStorage of the current allowlisted page. Write-only:
+        values are never echoed, logged or shown to the policy prompt (names only). Reload to apply."""
+        from urllib.parse import urlparse
+        page = self._allowlisted_page()
+        problem = state_guard.storage_input_problem({"cookies": cookies, "localStorage": local_storage, "sessionStorage": session_storage})
+        if problem:
+            raise ValueError(f"Not set: {problem}.")
+        names = ([f"cookie:{c['name']}" for c in cookies or []]
+                 + [f"localStorage:{k}" for k in (local_storage or {})]
+                 + [f"sessionStorage:{k}" for k in (session_storage or {})])
+        if not clear and not names:
+            raise ValueError("Nothing to do: pass cookies, local_storage, session_storage or clear.")
+        host = urlparse(page.url).hostname or ""
+        self.gate.check("sideEffect", f"{'Clear + ' if clear else ''}set {len(names)} state value(s) on {host}", ", ".join(names))
+        ctx = page.context
+        if clear:
+            ctx.clear_cookies(domain=host)
+            page.evaluate("() => { localStorage.clear(); sessionStorage.clear(); }")
+        if cookies:
+            # Playwright takes EITHER a url OR a domain+path pair, never url together with path.
+            ctx.add_cookies([({**c, "domain": host} if c.get("path") else {**c, "url": page.url}) for c in cookies])
+        for kind, entries in (("localStorage", local_storage), ("sessionStorage", session_storage)):
+            if entries:
+                page.evaluate("({kind, entries}) => { for (const [k, v] of Object.entries(entries)) globalThis[kind].setItem(k, v); }",
+                              {"kind": kind, "entries": entries})
+        return (("Cleared this host's cookies and storage. " if clear else "")
+                + (f"Set {', '.join(names)}. " if names else "") + "Reload (history('reload')) for the page to see it.")
+
+    def upload_file(self, target: str, paths) -> str:
+        """Attach workspace files to an <input type=file>: regular files inside the workspace only, secrets refused."""
+        page = self._allowlisted_page()
+        ok, res = state_guard.check_uploads(self.workspace, list(paths))
+        if not ok:
+            raise ValueError(f"Not uploaded: {res}.")
+        listing = ", ".join(f"{f['name']} ({max(1, round(f['size'] / 1024))} KB)" for f in res)
+        self.gate.check("sideEffect", f"Attach {len(res)} file(s) to {target}", listing)
+        self._locate(page, target).first.set_input_files([f["abs"] for f in res], timeout=10000)
+        return f"Attached {listing} to {target}."
+
+    # -- performance (Issue #39) ---------------------------------------------
+    def perf_summary(self, url: Optional[str] = None, cpu_slowdown: int = 1) -> str:
+        """Reload the page (or open an allowlisted ``url``) and report TTFB/FCP/LCP/CLS/TBT with web.dev ratings, the
+        slowest and largest requests, in a few lines. One lab run, not Lighthouse."""
+        if url is not None and guards.classify_url(url, self.policy.navigation_allowlist)[0] != "allowlisted":
+            raise guards_error("perf_summary only measures allowlisted URLs; open other pages with navigate first (it asks for approval).")
+        if not 1 <= int(cpu_slowdown) <= 6:
+            raise ValueError("cpu_slowdown must be 1-6")
+        self.gate.check("interact", f"Measure performance of {url or 'the current page'}")
+        page = self._ensure_page()
+        if not url and (not page.url or page.url == "about:blank"):
+            raise ValueError("No page is open: pass a url or navigate first.")
+        if page not in self._perf_pages:
+            page.add_init_script(perf_mod.PERF_INIT_SCRIPT)
+            self._perf_pages.add(page)
+        client = page.context.new_cdp_session(page) if cpu_slowdown > 1 else None
+        try:
+            if client:
+                client.send("Emulation.setCPUThrottlingRate", {"rate": int(cpu_slowdown)})
+            if url:
+                page.goto(url, wait_until="load")
+            else:
+                page.reload(wait_until="load")
+            page.wait_for_timeout(1200)  # let LCP / late layout shifts settle
+            raw = page.evaluate(perf_mod.PERF_COLLECT_SCRIPT)
+        finally:
+            if client:
+                try:
+                    client.send("Emulation.setCPUThrottlingRate", {"rate": 1})
+                    client.detach()
+                except Exception:
+                    pass
+        ctx = {"url": page.url, "how": "navigated" if url else "reloaded", "engine": "chromium", "cpuSlowdown": int(cpu_slowdown)}
+        return _frame(page.url, perf_mod.format_perf(raw, ctx))
 
     # -- composite tools (Issue #3): one call instead of 4-10 LLM turns --------
     def _check_navigation(self, url: str) -> None:

@@ -189,9 +189,13 @@ def measured(ledger: UsageLedger, name: str, fn: Callable[..., Any]) -> Callable
             ledger.record(name, in_tokens, 0, (time.time() - started) * 1000, False)
             raise
         try:
-            text = result if isinstance(result, str) else json.dumps(result, default=str)
-            out = estimate_text_tokens(text)
-            ok = not (isinstance(result, str) and result.startswith(("[policy]", "[error]")))
+            if isinstance(result, list) and all(hasattr(b, "type") for b in result):
+                out = estimate_result_tokens([{"type": b.type, "text": getattr(b, "text", None), "data": getattr(b, "data", None)} for b in result])
+                ok = True
+            else:
+                text = result if isinstance(result, str) else json.dumps(result, default=str)
+                out = estimate_text_tokens(text)
+                ok = not (isinstance(result, str) and result.startswith(("[policy]", "[error]")))
         except Exception:
             out, ok = 0, True
         ledger.record(name, in_tokens, out, (time.time() - started) * 1000, ok)

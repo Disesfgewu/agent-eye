@@ -34,7 +34,8 @@ with AgentEye(workspace=".", on_approve=lambda title, detail: True) as eye:
 ```
 
 Methods: `navigate`, `snapshot(interactive, selector, delta, depth, find, max_chars)`, `click`, `click_at`,
-`type`, `press_key`, `hover`, `select_option`, `wait_for`, `history`, `resize`, `screenshot`,
+`type`, `press_key`, `hover`, `select_option`, `wait_for`, `history`, `resize`, `screenshot` / `screenshot_if_changed`,
+`set_storage`, `upload_file`, `perf_summary`,
 `console(types, limit, include_history)` and `network(failed_only, url_contains, include_static, ...)`
 (compact, current page load only), raw `get_console_logs` / `get_network_requests`, `evaluate` (high-risk),
 `verify_page`, `batch`, `detect_project`, `start_dev_server`, `get_dev_server_logs`, `stop_dev_server`.
@@ -91,8 +92,8 @@ fixed on one side and missing on the other fails the build.
 | Compact output: snapshot `interactive`/`selector`/`delta`/`depth`/`find`/cap, one-line network, console/network scoped to the current page load | yes (golden-tested against the Node formatters) | yes |
 | `verify_page`, `batch` (all steps approved before any runs) | yes | yes |
 | Token usage ledger + `usage_report` (estimator golden-tested against the Node one) | yes (MCP server) | yes |
+| `set_storage` / `upload_file` (write-only, workspace-confined, secrets refused), `perf_summary`, screenshot `selector` / `if_changed` | yes (guards and formatters golden-tested against the Node ones) | yes |
 | Firefox / WebKit / device emulation, CDP attach | **no** | yes |
-| `set_storage`, `upload_file`, `perf_summary`, screenshot `ifChanged` | **no** | yes |
 
 ## Tests
 
