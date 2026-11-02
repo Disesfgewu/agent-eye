@@ -26,6 +26,14 @@ const server = http.createServer((req, res) => {
 <p id="out"></p>
 <script>setTimeout(()=>{const e=document.createElement('p');e.textContent='late-text';document.body.appendChild(e)},600)</script>`);
   }
+  if (req.url.startsWith("/slow.js")) { return setTimeout(() => { res.setHeader("content-type", "application/javascript"); res.end("window.__slow = 1;"); }, 400); }
+  if (req.url.startsWith("/big.js")) { res.setHeader("content-type", "application/javascript"); return res.end("/*" + "x".repeat(300 * 1024) + "*/"); }
+  if (req.url.startsWith("/perf")) {
+    res.setHeader("content-type", "text/html");
+    return res.end(`<!doctype html><title>perf</title><h1 id="hero">perf page</h1><script src="/slow.js"></script><script src="/big.js" async></script>
+<script>const t=Date.now();while(Date.now()-t<250){}
+setTimeout(()=>{const d=document.createElement('div');d.style.cssText='height:200px;background:#eee';document.body.insertBefore(d,document.getElementById('hero'));},300);</script>`);
+  }
   if (req.url.startsWith("/state")) {
     res.setHeader("content-type", "text/html");
     return res.end(`<!doctype html><title>state</title><pre id="out"></pre><script>document.getElementById('out').textContent='cookie='+document.cookie+' ls='+(localStorage.getItem('tok')||'none')+' ss='+(sessionStorage.getItem('s')||'none');</script>`);
@@ -190,6 +198,21 @@ check("upload_file attaches a workspace file", !up.isError && /hello\.txt/.test(
 check("the page received the file (name and size)", /hello\.txt:5/.test(textOf(await call("browser_snapshot"))));
 check("upload refuses a secret file inside the workspace", (await call("browser_upload_file", { target: "#f", paths: [".env"] })).isError === true);
 check("upload refuses a path outside the workspace", (await call("browser_upload_file", { target: "#f", paths: ["../../../../etc/hosts"] })).isError === true);
+
+// ---- performance summary (Issue #39) ----
+await call("browser_navigate", { url: `http://127.0.0.1:${port}/perf` });
+const perf = textOf(await call("browser_perf_summary", {}));
+const eng = process.env.AGENT_EYE_BROWSER || "chromium";
+check("perf_summary: header, TTFB and request count (all engines)", /Perf http:\/\/127\.0\.0\.1:\d+\/perf \(reloaded, /.test(perf) && /TTFB \d+ ms/.test(perf) && /\d+ requests/.test(perf), perf);
+check("perf_summary: the slow request is listed as slowest", /slowest: .*\/slow\.js/.test(perf), perf);
+check("perf_summary: the heavy request is listed as largest", /largest: .*\/big\.js/.test(perf), perf);
+if (eng === "chromium") {
+  check("perf_summary (chromium): LCP, a real layout shift and a long task are reported", /LCP \d+ ms/.test(perf) && /CLS 0\.\d+ [✓~✗]/.test(perf) && /\(\d+ long tasks?, worst \d+ ms\)/.test(perf) && !/CLS 0 ✓/.test(perf), perf);
+  check("perf_summary (chromium): CPU throttle is applied and shown", /cpu x4/.test(textOf(await call("browser_perf_summary", { cpuSlowdown: 4 }))));
+} else {
+  check(`perf_summary (${eng}): missing metrics are reported as n/a, not invented`, /n\/a on /.test(perf) || /LCP/.test(perf), perf);
+}
+check("perf_summary refuses a URL outside the allowlist", (await call("browser_perf_summary", { url: "https://example.com/" })).isError === true);
 
 await c.close();
 server.close();
