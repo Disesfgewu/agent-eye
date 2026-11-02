@@ -12,7 +12,7 @@
     "build": "npm run build --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "clean": "npm run clean --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present"
+    "test": "npm run test --workspaces --if-present && node --test scripts/ecosystem-watch.test.mjs"
   },
   "engines": {
     "node": ">=20"

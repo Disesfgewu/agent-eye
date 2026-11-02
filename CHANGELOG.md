@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Ecosystem tracking**: `docs/ECOSYSTEM.md` (sourced comparison + support matrix) and a weekly `ecosystem-watch` workflow that keeps one rolling "Ecosystem watch" issue updated with new upstream releases.
 - **Scripted composite tools**: `browser_verify_page` (navigate + status + console + failed requests + actionable elements in one call; 124 tokens without the element list) and `browser_batch` (≤20 steps in one call; all steps are permission-checked before any executes). Cuts LLM round-trips for the most common operations. `AGENT_EYE_TOOLSET=core` omits them.
 - **More interaction tools** (closing the gap with Playwright MCP / DevTools MCP): `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_wait_for`, `browser_history` (back/forward/reload), `browser_resize`. JS dialogs are now answered and recorded (`[dialog] …`, default: dismiss confirm/prompt); popups / `target=_blank` tabs are followed and captured. All go through the permission gate. Fixed cost ≈ +780 tokens/session; `AGENT_EYE_TOOLSET=core` opts out.
 - **Security: no inline-code execution via allowlisted interpreters** (`node -e`, `python -c`, `npx evil-pkg`, `deno eval`, …) and **page-initiated requests to cloud-metadata hosts are blocked** at the browser (`--host-resolver-rules`, cache-friendly). 56 new unit tests + an e2e SSRF check.
