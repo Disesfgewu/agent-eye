@@ -361,6 +361,7 @@ detail in [`plan.v1.md` §7](plan.v1.md).
   exactly like `npm run dev` runs `package.json` scripts. Do not point the agent at an
   untrusted repository with `execute: allow`; set `execute` to `ask` in
   `.agent-eye/policy.json`.
+- **Windows**: real executables (`go.exe`, `node.exe`, `python.exe`, …) are started directly, so any argument is passed through unchanged. Only `.cmd`/`.bat` shims (`npm`, `pnpm`, `yarn`, `vite`, …) go through `cmd.exe`; for those, arguments are quoted and arguments containing `"`, `%` or `^` are refused (cmd.exe would interpret them).
 - **Framework entry points** are limited to their server command too: `rails server`,
   `bundle exec <rails|puma|rackup|jekyll|…>`, `jekyll serve`, `hugo server`,
   `flask run`, `manage.py`/`django-admin runserver`, `php artisan serve`, and

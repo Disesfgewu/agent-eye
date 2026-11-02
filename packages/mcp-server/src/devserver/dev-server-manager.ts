@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import treeKill from "tree-kill";
 import { log } from "../logger.js";
-import { quoteWinArg, windowsUnsafeArg } from "../security/win-args.js";
+import { quoteWinArg, windowsLaunch, windowsUnsafeArg } from "../security/win-args.js";
 import { RingBuffer } from "../browser/ring-buffer.js";
 
 export interface DevServerLogLine {
@@ -123,10 +123,9 @@ export class DevServerManager {
 const isWindows = process.platform === "win32";
 
 /**
- * Spawns without a shell on POSIX. On Windows, npm/pnpm/vite/etc. are `.cmd`
- * shims that recent Node refuses to spawn directly, so we invoke them through
- * cmd.exe with verbatim arguments. This is only safe because the command guard
- * has already rejected shell metacharacters in the command, and args are quoted (security/win-args.ts).
+ * Spawns without a shell on POSIX and, on Windows, for real executables (go.exe, node.exe, ...).
+ * Only npm/pnpm/vite/etc. are `.cmd` shims that recent Node refuses to spawn directly, so
+ * those go through cmd.exe with verbatim, quoted arguments (security/win-args.ts).
  */
 function spawnProcess(command: string, args: string[], cwd: string): ChildProcess {
   // PYTHONUNBUFFERED: Python dev servers otherwise buffer stdout when piped, hiding "listening on ..." lines.
@@ -134,6 +133,8 @@ function spawnProcess(command: string, args: string[], cwd: string): ChildProces
   if (!isWindows) {
     return spawn(command, args, { cwd, env, shell: false });
   }
+  const launch = windowsLaunch(command, cwd, env);
+  if (launch.mode === "direct") return spawn(launch.file, args, { cwd, env, shell: false });
   // Defense in depth: the command guard already refuses these (Issue #27), but this module must not rely on it.
   for (const a of [command, ...args]) {
     const unsafe = windowsUnsafeArg(a);

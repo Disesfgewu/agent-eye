@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Windows: real executables are spawned directly, without cmd.exe** (#35). `go`, `cargo`, `dotnet`, `node`, `python`, `php`, ... (anything that resolves to a `.exe`) now receive their arguments untouched, so quotes, `%` and `^` work (JSON values, `%`-containing flags). Only `.cmd`/`.bat` shims (`npm`, `pnpm`, `yarn`, `vite`, ...) still go through cmd.exe with the strict quoting/refusal rules from #27. Node server and Python package; verified with real processes on Windows.
 - **Security: framework entry points and package managers can no longer run arbitrary code through the command allowlist** (#32). Verified bypasses before the fix (all were `allowlisted`): `python -m timeit -s "<code>"`, `python -m pip install x`, `python manage.py shell -c`, `rails runner`, `bundle exec ruby -e`, `flask shell`, `php artisan tinker`, `deno run npm:x`, `bun create x`, `npm install <pkg>`, `npm create`, `yarn add`. Now limited to server commands, in both the Node and Python guards, with 100 new shared test cases (280 total).
 ## 0.2.0 - 2026-11-02
 

@@ -2,7 +2,7 @@ import * as path from "node:path";
 import { isInside } from "../config.js";
 import { inlineCodeReason } from "./interpreter-guard.js";
 import { WRAPPER_COMMANDS, isPathEscape } from "./toolchains.js";
-import { windowsUnsafeArg } from "./win-args.js";
+import { windowsLaunch, windowsUnsafeArg } from "./win-args.js";
 
 /**
  * Dev-server launch scope enforcement (plan 7.2). Commands are passed as an
@@ -36,18 +36,20 @@ export function classifyCommand(
     };
   }
 
-  // On Windows dev servers go through cmd.exe, which interprets " % ^ even in arguments (Issue #27).
-  if (process.platform === "win32") {
-    const unsafe = [trimmed, ...args].map(windowsUnsafeArg).find(Boolean);
-    if (unsafe) return { verdict: "blocked", reason: `Windows: ${unsafe}.` };
-  }
-
   const resolvedCwd = path.resolve(workspaceRoot, cwd);
+
   if (!isInside(workspaceRoot, resolvedCwd)) {
     return {
       verdict: "blocked",
       reason: `cwd "${cwd}" resolves outside the workspace and is not allowed.`,
     };
+  }
+
+  // On Windows only .cmd/.bat shims (npm, vite, ...) go through cmd.exe, which interprets " % ^ even in
+  // arguments (Issues #27, #35). Real executables (go.exe, node.exe, ...) are spawned directly: any argument is fine.
+  if (process.platform === "win32" && windowsLaunch(trimmed, resolvedCwd).mode === "cmd") {
+    const unsafe = [trimmed, ...args].map(windowsUnsafeArg).find(Boolean);
+    if (unsafe) return { verdict: "blocked", reason: `Windows: ${unsafe}.` };
   }
 
   const base = basename(trimmed);
