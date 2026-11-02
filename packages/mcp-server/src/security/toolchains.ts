@@ -45,7 +45,7 @@ function parseFlag(a: string): Flag | undefined {
   return eq < 0 ? { name: body } : { name: body.slice(0, eq), value: body.slice(eq + 1) };
 }
 
-function scan(args: string[], valueFlags: ReadonlySet<string> = new Set(), stopAtFirstPositional = false): Scanned {
+export function scan(args: string[], valueFlags: ReadonlySet<string> = new Set(), stopAtFirstPositional = false): Scanned {
   const flags: Flag[] = [];
   const positionals: string[] = [];
   let rest: string[] = [];
@@ -310,6 +310,64 @@ function mixReason(args: string[]): string | undefined {
   );
 }
 
+// ---- Ruby / PHP / Python frameworks (Issue #32) -----------------------------------
+// Entry points that are allowlisted for their server command but also evaluate code
+// (`rails runner`, `manage.py shell -c`, `flask shell`, `php artisan tinker`, `bundle exec <anything>`).
+
+function railsReason(args: string[]): string | undefined {
+  return onlySubcommands("rails", scan(args).positionals[0], ["server", "s"]);
+}
+
+const BUNDLE_EXEC_OK = new Set(["rails", "puma", "rackup", "jekyll", "unicorn", "thin", "middleman", "bridgetown", "hanami"]);
+
+function bundleReason(args: string[]): string | undefined {
+  const { positionals } = scan(args);
+  const bad = onlySubcommands("bundle", positionals[0], ["exec"]);
+  if (bad) return bad;
+  const inner = positionals[1];
+  if (inner === undefined || !BUNDLE_EXEC_OK.has(inner)) {
+    return `bundle exec: "${inner ?? ""}" is not a known server command (allowed: ${[...BUNDLE_EXEC_OK].join(", ")})`;
+  }
+  return toolchainReason(inner, args.slice(args.indexOf(inner) + 1));
+}
+
+function rackupReason(args: string[]): string | undefined {
+  return denyFlagNames("rackup", scan(args).flags, ["e", "eval", "r", "require", "I"], "runs inline code or loads code from elsewhere");
+}
+
+function jekyllReason(args: string[]): string | undefined {
+  const { flags, positionals } = scan(args, new Set(["source", "s", "destination", "d", "config", "c", "port", "p", "host", "h", "baseurl", "b"]));
+  return onlySubcommands("jekyll", positionals[0], ["serve", "s", "server"]) ?? denyPathFlags("jekyll", flags, ["source", "s", "destination", "d", "config", "c"]);
+}
+
+function hugoReason(args: string[]): string | undefined {
+  const { flags, positionals } = scan(args, new Set(["source", "s", "destination", "d", "config", "themesdir", "cachedir", "contentdir", "layoutdir", "port", "p", "bind", "baseurl", "b", "environment", "e", "theme", "t"]));
+  return onlySubcommands("hugo", positionals[0], ["server"]) ?? denyPathFlags("hugo", flags, ["source", "s", "destination", "d", "config", "themesdir", "cachedir", "contentdir", "layoutdir"]);
+}
+
+function flaskReason(args: string[]): string | undefined {
+  const { flags, positionals } = scan(args, new Set(["app", "a", "env-file", "e"]));
+  return onlySubcommands("flask", positionals[0], ["run"]) ?? denyPathFlags("flask", flags, ["env-file", "e"]);
+}
+
+export function djangoReason(args: string[]): string | undefined {
+  const { flags, positionals } = scan(args, new Set(["settings", "pythonpath"]));
+  return onlySubcommands("manage.py", positionals[0], ["runserver", "runserver_plus"]) ?? denyPathFlags("manage.py", flags, ["pythonpath"]);
+}
+
+function uvicornReason(args: string[]): string | undefined {
+  const { flags } = scan(args, new Set(["app-dir", "env-file", "log-config", "host", "port", "workers", "reload-dir", "ssl-keyfile", "ssl-certfile"]));
+  return denyPathFlags("uvicorn", flags, ["app-dir", "env-file", "log-config"]);
+}
+
+/** `php artisan <cmd>`: only `serve` is a dev server (`tinker`, `migrate`, custom commands run code). */
+export function phpArtisanReason(args: string[]): string | undefined {
+  const i = args.findIndex((a) => /(^|[\\/])artisan$/.test(a));
+  if (i < 0) return undefined;
+  const sub = args.slice(i + 1).find((a) => !a.startsWith("-"));
+  return sub === "serve" ? undefined : `php artisan ${sub ?? ""}: only \`php artisan serve\` may be started here`;
+}
+
 /** Returns a human-readable reason when this invocation is not a plain dev-loop run; undefined otherwise (or for unknown tools). */
 export function toolchainReason(base: string, args: string[]): string | undefined {
   switch (base.toLowerCase()) {
@@ -326,6 +384,15 @@ export function toolchainReason(base: string, args: string[]): string | undefine
     case "gradle":
     case "gradlew": return gradleReason(args);
     case "mix": return mixReason(args);
+    case "rails": return railsReason(args);
+    case "bundle": return bundleReason(args);
+    case "rackup": return rackupReason(args);
+    case "jekyll": return jekyllReason(args);
+    case "hugo": return hugoReason(args);
+    case "flask": return flaskReason(args);
+    case "django-admin":
+    case "manage.py": return djangoReason(args);
+    case "uvicorn": return uvicornReason(args);
     default: return undefined;
   }
 }

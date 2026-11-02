@@ -1,4 +1,4 @@
-import { toolchainReason } from "./toolchains.js";
+import { djangoReason, phpArtisanReason, scan, toolchainReason } from "./toolchains.js";
 
 /**
  * Interpreter hardening for start_dev_server. The command allowlist contains
@@ -51,13 +51,27 @@ function leadingFlags(args: string[], stopAtModule = false): string[] {
   return out;
 }
 
+/** Options of npm/pnpm/yarn whose value is not a package name (so `--filter web` is not read as installing "web"). */
+const PM_VALUE_FLAGS = new Set(["prefix", "filter", "workspace", "dir", "loglevel", "cwd", "c", "w"]);
+
+/** `npm install <pkg>` / `pnpm add <pkg>` download and run third-party install scripts; `create`/`init <x>` run a remote template. */
+function installReason(tool: string, args: string[]): string | undefined {
+  const idx = args.findIndex((a) => ["install", "i", "add", "create", "init"].includes(a));
+  if (idx < 0) return undefined;
+  const sub = args[idx];
+  const named = scan(args.slice(idx + 1), PM_VALUE_FLAGS).positionals;
+  if (sub === "create") return `${tool} create runs a remote project template`;
+  if (sub === "init") return named.length ? `${tool} init ${named[0]} runs a remote initializer package` : undefined;
+  return named.length ? `${tool} ${sub} ${named[0]}: installing named packages downloads and runs third-party install scripts (a plain \`${tool} install\` from the lockfile is fine)` : undefined;
+}
+
 function runnerReason(tool: string, args: string[]): string | undefined {
   // npm/pnpm/yarn: only their exec/dlx forms download-and-run packages. Look for
   // the subcommand ANYWHERE (an option value like `--prefix web` may precede it).
   const subs = tool === "npm" ? ["exec", "x"] : tool === "pnpm" ? ["dlx", "exec"] : ["dlx"];
   const idx = args.findIndex((a) => subs.includes(a));
-  if (idx < 0) return undefined;
-  return packageRunnerReason(tool, args.slice(idx + 1));
+  if (idx < 0) return installReason(tool, args);
+  return packageRunnerReason(tool, args.slice(idx + 1)) ?? installReason(tool, args);
 }
 
 function packageRunnerReason(tool: string, args: string[]): string | undefined {
@@ -79,6 +93,30 @@ function packageRunnerReason(tool: string, args: string[]): string | undefined {
   return undefined;
 }
 
+/** Modules that are dev servers; anything else under `python -m` can run inline code (`timeit`) or install packages (`pip`). */
+const PY_MODULE_OK = new Set(["http.server", "flask", "uvicorn", "gunicorn", "django", "hypercorn", "daphne", "streamlit", "mkdocs", "sphinx_autobuild", "fastapi"]);
+
+function pythonTargetReason(args: string[]): string | undefined {
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a.startsWith("--")) continue;
+    if (a.startsWith("-")) {
+      const m = /^-[A-Za-z]*m(.*)$/.exec(a); // -m mod, -Im mod, -mmod
+      if (!m) continue;
+      const mod = m[1] || args[i + 1];
+      const rest = args.slice(m[1] ? i + 1 : i + 2);
+      if (mod === undefined) return undefined;
+      if (!PY_MODULE_OK.has(mod)) return `python -m ${mod}: only dev-server modules may be run (${[...PY_MODULE_OK].join(", ")})`;
+      if (mod === "flask") return toolchainReason("flask", rest);
+      if (mod === "django") return djangoReason(rest);
+      if (mod === "uvicorn") return toolchainReason("uvicorn", rest);
+      return undefined;
+    }
+    if (SCRIPT_LIKE.test(a)) return /(^|[\\/])manage\.py$/.test(a) ? djangoReason(args.slice(i + 1)) : undefined;
+  }
+  return undefined;
+}
+
 export function inlineCodeReason(base: string, args: string[]): string | undefined {
   const cmd = base.toLowerCase();
   const flags = leadingFlags(args);
@@ -94,11 +132,11 @@ export function inlineCodeReason(base: string, args: string[]): string | undefin
     case "py": {
       // -c <code>, possibly clustered (-Ic); a bare "-" reads the program from stdin.
       const bad = leadingFlags(args, true).find((f) => f === "-" || (/^-[A-Za-z]+$/.test(f) && f.slice(1).includes("c")));
-      return bad ? `python ${bad} runs inline code` : undefined;
+      return bad ? `python ${bad} runs inline code` : pythonTargetReason(args);
     }
     case "php": {
       const bad = flags.find((f) => /^-[rRBEF]$/.test(f));
-      return bad ? `php ${bad} runs inline code` : undefined;
+      return bad ? `php ${bad} runs inline code` : phpArtisanReason(args);
     }
     case "ruby": {
       const bad = flags.find((f) => f === "-e" || /^-[A-Za-z]*e$/.test(f) || f === "-");
@@ -107,13 +145,14 @@ export function inlineCodeReason(base: string, args: string[]): string | undefin
     case "deno": {
       const sub = args.find((a) => !a.startsWith("-"));
       if (sub === "eval" || sub === "repl") return `deno ${sub} runs inline code`;
-      if (args.some((a) => /^https?:\/\//i.test(a))) return "deno: running remote code from a URL is not allowed";
+      if (args.some((a) => /^(https?:\/\/|npm:|jsr:|data:)/i.test(a))) return "deno: running remote code from a URL or package specifier is not allowed";
       return undefined;
     }
     case "bun": {
       const bad = flags.find((f) => /^(-e|--eval(=.*)?|-p|--print(=.*)?)$/.test(f));
       if (bad) return `bun ${bad} runs inline code`;
       const sub = args.find((a) => !a.startsWith("-"));
+      if (sub === "create" || sub === "repl") return `bun ${sub} runs a remote template / inline code`;
       return sub === "x" ? packageRunnerReason("bun x", args.slice(args.indexOf("x") + 1)) : undefined;
     }
     case "npx":

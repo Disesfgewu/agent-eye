@@ -360,8 +360,17 @@ detail in [`plan.v1.md` §7](plan.v1.md).
   code (`build.rs`, proc-macros, `.air.toml`, Trunk hooks, Maven/Gradle build files),
   exactly like `npm run dev` runs `package.json` scripts. Do not point the agent at an
   untrusted repository with `execute: allow`; set `execute` to `ask` in
-  `.agent-eye/policy.json`. Not yet covered: framework subcommands that evaluate code
-  (`manage.py shell -c`, `rails runner`).
+  `.agent-eye/policy.json`.
+- **Framework entry points** are limited to their server command too: `rails server`,
+  `bundle exec <rails|puma|rackup|jekyll|…>`, `jekyll serve`, `hugo server`,
+  `flask run`, `manage.py`/`django-admin runserver`, `php artisan serve`, and
+  `python -m` only for dev-server modules (`http.server`, `flask`, `uvicorn`, `django`, …).
+  `rails runner|console`, `manage.py shell -c`, `flask shell`, `php artisan tinker`,
+  `python -m timeit|pip|code`, `hugo new`, `jekyll new` are refused. Package managers:
+  `npm install` / `pnpm install` / `yarn install` from the lockfile are fine, but
+  installing **named** packages (`npm i x`, `pnpm add x`, `yarn add x`) and running remote
+  templates (`npm|pnpm|yarn|bun create`, `npm init x`) are refused, as are `deno run
+  npm:…|jsr:…|https://…`.
 - **Request-level SSRF guard**: page-initiated requests (fetch/XHR/iframes/redirects)
   to cloud-metadata hosts (`169.254.169.254`, `metadata.google.internal`,
   `metadata.goog`, `100.100.100.200`, `168.63.129.16`) cannot resolve, via

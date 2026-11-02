@@ -21,7 +21,7 @@ from __future__ import annotations
 import re
 from typing import List, Optional
 
-from .toolchains import toolchain_reason
+from .toolchains import django_reason, php_artisan_reason, toolchain_reason, _scan
 
 RUNNER_ALLOWED_PACKAGES = {
     "serve", "http-server", "live-server", "lite-server", "browser-sync", "light-server",
@@ -78,14 +78,66 @@ def _package_runner_reason(tool: str, args: List[str]) -> Optional[str]:
     return None
 
 
+# Options of npm/pnpm/yarn whose value is not a package name (so `--filter web` is not read as installing "web").
+_PM_VALUE_FLAGS = {"prefix", "filter", "workspace", "dir", "loglevel", "cwd", "c", "w"}
+
+
+def _install_reason(tool: str, args: List[str]) -> Optional[str]:
+    """`npm install <pkg>` / `pnpm add <pkg>` download and run third-party install scripts; `create`/`init <x>` run a remote template."""
+    idx = next((i for i, a in enumerate(args) if a in ("install", "i", "add", "create", "init")), -1)
+    if idx < 0:
+        return None
+    sub = args[idx]
+    named = _scan(args[idx + 1:], _PM_VALUE_FLAGS)[1]
+    if sub == "create":
+        return f"{tool} create runs a remote project template"
+    if sub == "init":
+        return f"{tool} init {named[0]} runs a remote initializer package" if named else None
+    if named:
+        return (f"{tool} {sub} {named[0]}: installing named packages downloads and runs third-party install scripts "
+                f"(a plain `{tool} install` from the lockfile is fine)")
+    return None
+
+
 def _runner_reason(tool: str, args: List[str]) -> Optional[str]:
     # npm/pnpm/yarn: only their exec/dlx forms download-and-run packages. Look for the
     # subcommand ANYWHERE (an option value like ``--prefix web`` may precede it).
     subs = ["exec", "x"] if tool == "npm" else ["dlx", "exec"] if tool == "pnpm" else ["dlx"]
     idx = next((i for i, a in enumerate(args) if a in subs), -1)
     if idx < 0:
-        return None
-    return _package_runner_reason(tool, args[idx + 1:])
+        return _install_reason(tool, args)
+    return _package_runner_reason(tool, args[idx + 1:]) or _install_reason(tool, args)
+
+
+# Modules that are dev servers; anything else under `python -m` can run inline code (`timeit`) or install packages (`pip`).
+_PY_MODULE_OK = ["http.server", "flask", "uvicorn", "gunicorn", "django", "hypercorn", "daphne", "streamlit", "mkdocs",
+                 "sphinx_autobuild", "fastapi"]
+
+
+def _python_target_reason(args: List[str]) -> Optional[str]:
+    for i, a in enumerate(args):
+        if a.startswith("--"):
+            continue
+        if a.startswith("-"):
+            m = re.match(r"^-[A-Za-z]*m(.*)$", a, re.DOTALL)  # -m mod, -Im mod, -mmod
+            if not m:
+                continue
+            mod = m.group(1) or (args[i + 1] if i + 1 < len(args) else None)
+            rest = args[i + 1:] if m.group(1) else args[i + 2:]
+            if mod is None:
+                return None
+            if mod not in _PY_MODULE_OK:
+                return f"python -m {mod}: only dev-server modules may be run ({', '.join(_PY_MODULE_OK)})"
+            if mod == "flask":
+                return toolchain_reason("flask", rest)
+            if mod == "django":
+                return django_reason(rest)
+            if mod == "uvicorn":
+                return toolchain_reason("uvicorn", rest)
+            return None
+        if _SCRIPT_LIKE.search(a):
+            return django_reason(args[i + 1:]) if re.search(r"(^|[\\/])manage\.py$", a) else None
+    return None
 
 
 def inline_code_reason(base: str, args: List[str]) -> Optional[str]:
@@ -101,10 +153,10 @@ def inline_code_reason(base: str, args: List[str]) -> Optional[str]:
             (f for f in _leading_flags(args, True) if f == "-" or (re.fullmatch(r"-[A-Za-z]+", f) and "c" in f[1:])),
             None,
         )
-        return f"python {bad} runs inline code" if bad else None
+        return f"python {bad} runs inline code" if bad else _python_target_reason(args)
     if cmd == "php":
         bad = next((f for f in flags if re.fullmatch(r"-[rRBEF]", f)), None)
-        return f"php {bad} runs inline code" if bad else None
+        return f"php {bad} runs inline code" if bad else php_artisan_reason(args)
     if cmd == "ruby":
         bad = next((f for f in flags if f == "-e" or re.fullmatch(r"-[A-Za-z]*e", f) or f == "-"), None)
         return f"ruby {bad} runs inline code" if bad else None
@@ -112,14 +164,16 @@ def inline_code_reason(base: str, args: List[str]) -> Optional[str]:
         sub = next((a for a in args if not a.startswith("-")), None)
         if sub in ("eval", "repl"):
             return f"deno {sub} runs inline code"
-        if any(re.match(r"^https?://", a, re.IGNORECASE) for a in args):
-            return "deno: running remote code from a URL is not allowed"
+        if any(re.match(r"^(https?://|npm:|jsr:|data:)", a, re.IGNORECASE) for a in args):
+            return "deno: running remote code from a URL or package specifier is not allowed"
         return None
     if cmd == "bun":
         bad = next((f for f in flags if re.fullmatch(r"-e|--eval(=.*)?|-p|--print(=.*)?", f)), None)
         if bad:
             return f"bun {bad} runs inline code"
         sub = next((a for a in args if not a.startswith("-")), None)
+        if sub in ("create", "repl"):
+            return f"bun {sub} runs a remote template / inline code"
         return _package_runner_reason("bun x", args[args.index("x") + 1:]) if sub == "x" else None
     if cmd in ("npx", "bunx"):
         return _package_runner_reason(cmd, args)
