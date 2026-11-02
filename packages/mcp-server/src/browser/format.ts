@@ -176,3 +176,39 @@ export function formatNetwork(entries: NetworkLike[], opts: NetworkFormatOpts): 
 function stripOrigin(url: string, origin?: string): string {
   return origin && url.startsWith(origin) ? url.slice(origin.length) || "/" : url;
 }
+
+// ------------------------------------------------------------------- health
+
+export interface HealthInput {
+  url: string;
+  title: string;
+  console: ConsoleLike[];
+  network: NetworkLike[];
+  origin?: string;
+  redact: (url: string) => string;
+  /** Max distinct lines listed under each section. */
+  maxLines?: number;
+}
+
+/**
+ * One compact "is this page healthy?" report: document status, console
+ * errors/warnings, failed requests. Replaces the usual navigate + console +
+ * network round-trips with a single small result.
+ */
+export function formatHealth(h: HealthInput): string {
+  const max = h.maxLines ?? 10;
+  const doc = [...h.network].reverse().find((e) => e.resourceType === "document");
+  const errors = h.console.filter((e) => e.type === "error");
+  const warnings = h.console.filter((e) => e.type === "warning" || e.type === "warn");
+  const failed = h.network.filter(isFailure);
+  const lines = [
+    `URL: ${h.url}`,
+    `Title: ${h.title || "(none)"}${doc ? `   Document: ${doc.failure ? `FAILED(${doc.failure})` : doc.status}` : ""}`,
+    `Console: ${errors.length} error(s), ${warnings.length} warning(s)`,
+  ];
+  if (errors.length) lines.push(formatConsole(errors, { limit: max, origin: h.origin }));
+  if (warnings.length && !errors.length) lines.push(formatConsole(warnings, { limit: Math.min(max, 3), origin: h.origin }));
+  lines.push(`Network: ${failed.length} failed of ${h.network.length} request(s)`);
+  if (failed.length) lines.push(formatNetwork(failed, { limit: max, origin: h.origin, includeStatic: true, redact: h.redact }));
+  return lines.join("\n");
+}

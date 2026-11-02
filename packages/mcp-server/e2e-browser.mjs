@@ -113,6 +113,35 @@ await call("browser_click", { target: "#p" });
 await new Promise((r) => setTimeout(r, 800));
 check("popup (target=_blank) is followed and visible to the agent", /popup-page/.test(textOf(await call("browser_snapshot")))
   && /\[popup\] opened/.test(textOf(await call("browser_get_console_logs", { types: ["popup"], includeHistory: true }))));
+// ---- composite tools (Issue #3) ----
+const vp = await call("browser_verify_page", { url: `http://127.0.0.1:${port}/` });
+const vpt = textOf(vp);
+check("verify_page: one call reports status, console error, failed request, actionable elements",
+  !vp.isError && /Document: 200/.test(vpt) && /Console: [1-9]d* error/.test(vpt) && /e2e-boom/.test(vpt) && /GET 404 fetch \/missing/.test(vpt) && /button "go"/.test(vpt));
+check("verify_page respects the navigation scope", (await call("browser_verify_page", { url: "file:///etc/passwd" })).isError === true);
+
+const batch = await call("browser_batch", { steps: [
+  { action: "navigate", url: A },
+  { action: "select", target: "#s", values: ["Beta"] },
+  { action: "hover", target: "#h" },
+  { action: "wait", text: "hovered", timeoutMs: 2000 },
+] });
+const bt = textOf(batch);
+check("batch runs a whole flow in one call and appends a health summary",
+  !batch.isError && /1\. navigate ✓/.test(bt) && /4\. wait ✓/.test(bt) && /Console: \d+ error/.test(bt));
+const failing = await call("browser_batch", { report: "none", steps: [
+  { action: "wait", text: "never-there", timeoutMs: 300 },
+  { action: "hover", target: "#h" },
+] });
+check("batch stops at the first failure and marks the rest skipped", failing.isError === true && /1\. wait ✗/.test(textOf(failing)) && /2\. hover – skipped/.test(textOf(failing)));
+await call("browser_navigate", { url: A });
+const denied = await call("browser_batch", { report: "none", steps: [
+  { action: "hover", target: "#h" },
+  { action: "navigate", url: "https://example.com/" },
+] });
+const afterDenied = textOf(await call("browser_snapshot"));
+check("batch checks every step first: a denied step means NOTHING ran", denied.isError === true && /Nothing was executed/.test(textOf(denied)) && !/hovered/.test(afterDenied));
+check("batch rejects malformed steps without running anything", (await call("browser_batch", { steps: [{ action: "click" }] })).isError === true);
 const usage = await c.callTool({ name: "usage_report", arguments: {} });
 check("usage_report counts the calls made", /browser_snapshot \| [1-9]\d* \|/.test(textOf(usage)) && /Calls: \d+/.test(textOf(usage)));
 
