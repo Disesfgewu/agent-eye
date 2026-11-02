@@ -107,6 +107,14 @@ check("hover fires mouseover", !(await call("browser_wait_for", { text: "hovered
 await call("browser_click", { target: "#i" });
 await call("browser_press_key", { key: "Escape" });
 check("press_key delivers the key", !(await call("browser_wait_for", { text: "key:Escape", timeoutMs: 2000 })).isError);
+const hasImage = (r) => (r.content || []).some((x) => x.type === "image");
+const shot1 = await call("browser_screenshot", { ifChanged: true });
+const shot2 = await call("browser_screenshot", { ifChanged: true });
+check("screenshot ifChanged: first shot returns the image", hasImage(shot1));
+check("screenshot ifChanged: identical page -> one line, no image", !hasImage(shot2) && /unchanged/i.test(textOf(shot2)), textOf(shot2));
+await call("browser_type", { target: "#i", text: "changed-input" });
+check("screenshot ifChanged: after a visible change the image is returned again", hasImage(await call("browser_screenshot", { ifChanged: true })));
+check("screenshot without ifChanged always returns the image", hasImage(await call("browser_screenshot", {})));
 await call("browser_click", { target: "#d" });
 check("confirm() is dismissed (not auto-confirmed) and recorded", !(await call("browser_wait_for", { text: "kept", timeoutMs: 2000 })).isError
   && /\[dialog\] confirm: "Delete\?" -> dismissed/.test(textOf(await call("browser_get_console_logs", { types: ["dialog"] }))));
