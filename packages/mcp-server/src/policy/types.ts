@@ -68,6 +68,10 @@ export const DEFAULT_POLICY: Policy = {
     "flutter", "dart",
     // Python (http.server, Django, Flask, uvicorn, ...)
     "python", "python3", "py", "uvicorn", "flask", "django-admin", "manage.py",
+    // Go / Rust / .NET / JVM / Elixir (subcommands and flags are restricted by
+    // security/toolchains.ts: only the dev loop is reachable, never arbitrary programs)
+    "go", "air", "templ", "wails", "cargo", "trunk", "dx", "dotnet",
+    "mvn", "mvnw", "gradle", "gradlew", "mix",
     // PHP / Ruby / static & SSG servers
     "php", "ruby", "bundle", "rails", "jekyll", "hugo",
     "http-server", "serve", "live-server", "static-server", "wrangler",

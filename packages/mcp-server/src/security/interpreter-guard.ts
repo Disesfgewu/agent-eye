@@ -1,3 +1,5 @@
+import { toolchainReason } from "./toolchains.js";
+
 /**
  * Interpreter hardening for start_dev_server. The command allowlist contains
  * interpreters (node, python, php, ruby, deno, bun) and package runners (npx,
@@ -122,6 +124,7 @@ export function inlineCodeReason(base: string, args: string[]): string | undefin
     case "yarn":
       return runnerReason(cmd, args);
     default:
-      return undefined;
+      // Go / Rust / .NET / JVM / Elixir launchers: see toolchains.ts.
+      return toolchainReason(cmd, args);
   }
 }
