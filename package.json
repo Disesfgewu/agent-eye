@@ -1,6 +1,6 @@
 {
   "name": "agent-eye",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "description": "Give AI coding agents eyes and hands in the browser: an MCP server + VS Code extension for autonomous frontend run-test-debug loops.",
   "license": "Apache-2.0",

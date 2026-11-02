@@ -7,4 +7,4 @@ from .browser import AgentEye
 from .policy import Policy, PermissionGate, PolicyError
 
 __all__ = ["AgentEye", "Policy", "PermissionGate", "PolicyError"]
-__version__ = "0.5.0"
+__version__ = "0.5.1"
