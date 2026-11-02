@@ -14,6 +14,7 @@ const textOf = (r) => (r.content || []).filter((x) => x.type === "text").map((x)
 
 const server = http.createServer((req, res) => {
   if (req.url.startsWith("/missing")) { res.statusCode = 404; return res.end("nf"); }
+  if (req.url.startsWith("/imds")) { res.setHeader("content-type", "text/html"); return res.end('<!doctype html><script>fetch("http://169.254.169.254/latest/meta-data/",{mode:"no-cors"}).catch(()=>{});</script>ssrf probe'); }
   res.setHeader("content-type", "text/html");
   res.end('<!doctype html><h1 id="t">agent-eye e2e ok</h1><button id="b">go</button><script>console.error("e2e-boom");fetch("/missing");</script>');
 });
@@ -68,6 +69,12 @@ const cons2 = textOf(await c.callTool({ name: "browser_get_console_logs", argume
 check("console is scoped to the current page load (no x2)", /\[error\] e2e-boom/.test(cons2) && !/×2/.test(cons2));
 const cons3 = textOf(await c.callTool({ name: "browser_get_console_logs", arguments: { types: ["error"], includeHistory: true } }));
 check("includeHistory returns earlier loads too (x2)", /×2/.test(cons3));
+// SSRF: a page on an allowlisted host must not be able to reach cloud-metadata addresses.
+await c.callTool({ name: "browser_navigate", arguments: { url: `http://127.0.0.1:${port}/imds` } });
+await new Promise((r) => setTimeout(r, 500));
+const ssrf = textOf(await c.callTool({ name: "browser_get_network_requests", arguments: { failedOnly: true } }));
+check("page-initiated request to 169.254.169.254 cannot resolve (blocked at the browser)", /169\.254\.169\.254/.test(ssrf) && /ERR_NAME_NOT_RESOLVED/.test(ssrf));
+
 const usage = await c.callTool({ name: "usage_report", arguments: {} });
 check("usage_report counts the calls made", /browser_snapshot \| [1-9]\d* \|/.test(textOf(usage)) && /Calls: \d+/.test(textOf(usage)));
 
