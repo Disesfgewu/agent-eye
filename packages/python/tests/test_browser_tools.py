@@ -24,6 +24,7 @@ from agent_eye.policy import Policy
 HOME = b"""<!doctype html><title>home</title><h1 id="t">agent-eye py ok</h1><button id="b">go</button>
 <script>console.error("py-boom");fetch("/missing");</script>"""
 CLEAN = b"""<!doctype html><title>clean</title><h1>clean page</h1>"""
+LATE = b"""<!doctype html><title>late</title><h1>late</h1><script>setTimeout(()=>console.error("late-boom"),300);setTimeout(()=>fetch("/late-missing"),300)</script>"""
 ACTIONS = b"""<!doctype html><title>actions</title>
 <select id="s"><option value="a">Alpha</option><option value="b">Beta</option></select>
 <input id="i" aria-label="field" onkeydown="document.getElementById('out').textContent='key:'+event.key">
@@ -45,7 +46,7 @@ class _Handler(http.server.BaseHTTPRequestHandler):
         path = self.path.split("?")[0]
         if path == "/slow.js":
             time.sleep(0.4)
-        routes = {"/": (200, HOME), "/clean": (200, CLEAN), "/actions": (200, ACTIONS), "/popup": (200, POPUP),
+        routes = {"/": (200, HOME), "/clean": (200, CLEAN), "/late": (200, LATE), "/actions": (200, ACTIONS), "/popup": (200, POPUP),
                   "/state": (200, STATE), "/upload": (200, UPLOAD), "/perf": (200, PERF),
                   "/slow.js": (200, b"window.__slow = 1;"), "/big.js": (200, b"/*" + b"x" * (300 * 1024) + b"*/")}
         status, body = routes.get(path, (404, b"nf"))
@@ -85,6 +86,22 @@ class BrowserTools(unittest.TestCase):
         self.assertIn("py-boom", eye.console(include_history=True), "history is still available on request")
         self.assertNotIn("/missing", eye.network(failed_only=True))
         self.assertIn("/missing", eye.network(failed_only=True, include_history=True))
+
+    def test_reading_console_and_network_sees_events_that_arrive_between_calls(self):
+        """Playwright's sync API only delivers browser events while one of its calls runs; reading our local buffers is not such a
+        call. Without pumping, an error raised 300 ms after load stayed invisible until some unrelated browser call happened."""
+        eye = self.eye
+        eye.navigate(self.base + "/late")
+        seen_console, seen_network = "", ""
+        end = time.time() + 6
+        while time.time() < end and not ("late-boom" in seen_console and "/late-missing" in seen_network):
+            seen_console = eye.console()            # only buffer reads from here on: no navigate/click/wait_for
+            seen_network = eye.network(failed_only=True)
+            time.sleep(0.1)
+        self.assertIn("late-boom", seen_console)
+        self.assertRegex(seen_network, r"GET 404 \w+ /late-missing")
+        self.assertIn("late-boom", json.dumps(eye.get_console_logs()))
+        self.assertIn("/late-missing", json.dumps(eye.get_network_requests()))
 
     def test_network_output_is_compact_and_hides_static_assets(self):
         self.eye.navigate(self.base + "/")

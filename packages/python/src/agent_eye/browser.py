@@ -529,13 +529,26 @@ class AgentEye:
             return None, f"Screenshot unchanged since {max(0, round(time.time() - before[1]))}s ago; image not resent."
         return data, "Screenshot captured."
 
+    def _pump(self) -> None:
+        """Let queued browser events (console messages, failed requests, new tabs) arrive before a buffer is read. Playwright's
+        sync API delivers events only while one of its calls is running; reads of our local buffers are not such calls, so
+        without this the newest events were invisible until the next unrelated browser call."""
+        page = self._page
+        if page is not None:
+            try:
+                page.wait_for_timeout(100)
+            except Exception:
+                pass  # page closed meanwhile: nothing to pump
+
     def get_console_logs(self, limit: Optional[int] = None) -> list:
         self.gate.check("observe", "Read console logs")
+        self._pump()
         logs = list(self._console)
         return logs[-limit:] if limit else logs
 
     def get_network_requests(self, limit: Optional[int] = None) -> list:
         self.gate.check("observe", "Read network requests")
+        self._pump()
         redact = self.policy.redact_sensitive_headers
         out = []
         items = list(self._network)
@@ -559,6 +572,7 @@ class AgentEye:
     def console(self, types=None, limit: int = 50, include_history: bool = False) -> str:
         """Compact console report of the CURRENT page load (reset on navigation/reload), duplicates collapsed (xN)."""
         self.gate.check("observe", "Read console logs")
+        self._pump()
         entries = [e for e in self._console if include_history or e.get("epoch") == self._epoch]
         body = fmt.format_console(entries, {"types": types, "limit": limit, "origin": self._origin()})
         return _frame(self._page.url if self._page is not None else "(no page)", body)
@@ -567,6 +581,7 @@ class AgentEye:
                 limit: int = 100, include_history: bool = False) -> str:
         """One line per request of the CURRENT page load: static assets hidden unless failed, sensitive query values redacted."""
         self.gate.check("observe", "Read network requests")
+        self._pump()
         redact = self.policy.redact_sensitive_headers
         entries = [e for e in self._network if include_history or e.get("epoch") == self._epoch]
         body = fmt.format_network(entries, {
