@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agent-eye"
-version = "0.5.0"
+version = "0.5.1"
 description = "Give AI agents eyes and hands in the browser: Playwright browser control + dev-server management with server-side permission enforcement, as a Python API and an MCP server."
 readme = "README.md"
 requires-python = ">=3.9"
