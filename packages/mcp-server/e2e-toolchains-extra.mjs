@@ -33,11 +33,17 @@ const write = (root, rel, body) => {
   fs.mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
   fs.writeFileSync(path.join(root, rel), body);
 };
-const fetchText = async (port) => {
-  for (let i = 0; i < 40; i++) {
-    try { return await (await fetch(`http://127.0.0.1:${port}/`)).text(); } catch { await new Promise((r) => setTimeout(r, 500)); }
+// Polls until the page contains `expect` (some servers, e.g. trunk, open the port before the first build finishes).
+const fetchText = async (port, expect) => {
+  let last = "";
+  for (let i = 0; i < 60; i++) {
+    try {
+      last = await (await fetch(`http://127.0.0.1:${port}/`)).text();
+      if (!expect || last.includes(expect)) return last;
+    } catch { /* not accepting yet */ }
+    await new Promise((r) => setTimeout(r, 500));
   }
-  return "";
+  return last;
 };
 
 const ws = fs.mkdtempSync(path.join(os.tmpdir(), "ae-tcx-"));
@@ -73,7 +79,7 @@ const STACKS = {
       check("dotnet: detect_project finds ASP.NET Core with `dotnet run`", /ASP\.NET Core @ dotnet-ok: .*command="dotnet" args=\["run"\]/.test(det), det);
       const r = await startUntilReady("dn", "dotnet", ["run"], "dotnet-ok", port);
       check(`dotnet: dotnet run -> Ready (${r.calls} call(s))`, r.ready, r.text);
-      check("dotnet: really serving", /dotnet-ok/.test(await fetchText(port)));
+      check("dotnet: really serving", /dotnet-ok/.test(await fetchText(port, "dotnet-ok")));
       await call("stop_dev_server", { id: "dn" });
       check("dotnet: -p:RunCommand=... is refused", (await call("start_dev_server", { id: "dx", command: "dotnet", args: ["run", "-p:RunCommand=echo"], cwd: "dotnet-ok" })).isError === true);
     },
@@ -96,7 +102,7 @@ const STACKS = {
       check("maven: detect_project finds Spring Boot with `mvn spring-boot:run`", /Spring Boot \(Maven\) @ mvn-ok: .*command="mvn" args=\["spring-boot:run"\]/.test(det), det);
       const r = await startUntilReady("mv", "mvn", ["-B", "spring-boot:run", `-Dspring-boot.run.arguments=--server.port=${port}`], "mvn-ok", port, 10);
       check(`maven: spring-boot:run -> Ready (${r.calls} call(s))`, r.ready, r.text);
-      check("maven: really serving", /maven-ok/.test(await fetchText(port)));
+      check("maven: really serving", /maven-ok/.test(await fetchText(port, "maven-ok")));
       await call("stop_dev_server", { id: "mv" });
       check("maven: -Dspring-boot.run.jvmArguments=-javaagent... is refused", (await call("start_dev_server", { id: "mx", command: "mvn", args: ["spring-boot:run", "-Dspring-boot.run.jvmArguments=-javaagent:/tmp/x.jar"], cwd: "mvn-ok" })).isError === true);
       check("maven: exec:java is refused", (await call("start_dev_server", { id: "my", command: "mvn", args: ["exec:java"], cwd: "mvn-ok" })).isError === true);
@@ -111,7 +117,7 @@ const STACKS = {
       write(ws, "gr-ok/src/main/java/App.java", `import com.sun.net.httpserver.HttpServer;\nimport java.net.InetSocketAddress;\npublic class App {\n  public static void main(String[] a) throws Exception {\n    HttpServer s = HttpServer.create(new InetSocketAddress("127.0.0.1", ${port}), 0);\n    s.createContext("/", x -> { byte[] b = "gradle-ok".getBytes(); x.sendResponseHeaders(200, b.length); x.getResponseBody().write(b); x.close(); });\n    s.start();\n  }\n}\n`);
       const r = await startUntilReady("gr", "gradle", ["run", "--console=plain"], "gr-ok", port);
       check(`gradle: gradle run -> Ready (${r.calls} call(s))`, r.ready, r.text);
-      check("gradle: really serving", /gradle-ok/.test(await fetchText(port)));
+      check("gradle: really serving", /gradle-ok/.test(await fetchText(port, "gradle-ok")));
       await call("stop_dev_server", { id: "gr" });
       check("gradle: -I init.gradle is refused", (await call("start_dev_server", { id: "gx", command: "gradle", args: ["run", "-I", "init.gradle"], cwd: "gr-ok" })).isError === true);
       check("gradle: tasks other than the dev loop are refused", (await call("start_dev_server", { id: "gy", command: "gradle", args: ["build"], cwd: "gr-ok" })).isError === true);
@@ -139,7 +145,7 @@ end
 `);
       const r = await startUntilReady("ex", "mix", ["run", "--no-halt"], "ex-ok", port);
       check(`elixir: mix run --no-halt -> Ready (${r.calls} call(s))`, r.ready, r.text);
-      check("elixir: really serving", /elixir-ok/.test(await fetchText(port)));
+      check("elixir: really serving", /elixir-ok/.test(await fetchText(port, "elixir-ok")));
       await call("stop_dev_server", { id: "ex" });
       check("elixir: mix run -e is refused", (await call("start_dev_server", { id: "ey", command: "mix", args: ["run", "-e", "IO.puts(1)"], cwd: "ex-ok" })).isError === true);
       check("elixir: mix deps.get is refused", (await call("start_dev_server", { id: "ez", command: "mix", args: ["deps.get"], cwd: "ex-ok" })).isError === true);
@@ -156,7 +162,7 @@ end
       check("trunk: detect_project suggests `trunk serve` for a wasm crate with index.html", /command="trunk" args=\["serve"\]|Rust/.test(det), det);
       const r = await startUntilReady("tr", "trunk", ["serve", "--port", String(port), "--address", "127.0.0.1", "--no-autoreload"], "tr-ok", port, 10);
       check(`trunk: trunk serve -> Ready (${r.calls} call(s))`, r.ready, r.text);
-      check("trunk: really serving the page", /trunk-ok/.test(await fetchText(port)));
+      check("trunk: really serving the page", /trunk-ok/.test(await fetchText(port, "trunk-ok")));
       await call("stop_dev_server", { id: "tr" });
       check("trunk: trunk build is refused", (await call("start_dev_server", { id: "tx", command: "trunk", args: ["build"], cwd: "tr-ok" })).isError === true);
     },
