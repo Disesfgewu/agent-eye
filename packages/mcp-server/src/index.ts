@@ -14,20 +14,18 @@ import { registerTools } from "./tools/register.js";
 import { registerUsageTool } from "./tools/usage-tool.js";
 import { UsageLedger } from "./usage/ledger.js";
 import { instrumentTools } from "./usage/instrument.js";
+import { SERVER_VERSION } from "./version.js";
 
 const SERVER_NAME = "agent-eye";
-const SERVER_VERSION = "0.1.0";
 
 async function main(): Promise<void> {
   const config = loadConfig();
   ensureDirs(config);
   log.info("Starting Agent Eye MCP server", { workspaceRoot: config.workspaceRoot });
 
-  // No preemptive instance lock: each server instance uses its own per-pid
-  // browser profile (see config), so two instances never collide on the profile
-  // and one never falsely blocks the other. (The old lock blocked browser tools
-  // whenever another server merely existed — even if it never opened a browser.)
-  const ownsGlobals = true;
+  // No instance lock: each server instance uses its own per-pid browser profile
+  // (see config), so two instances never collide on the profile and one never
+  // falsely blocks the other.
 
   // Reap any orphaned browser/dev-server processes left by a previous instance
   // that died abruptly (crash/SIGKILL) — no zombies, no leaks.
@@ -69,7 +67,6 @@ async function main(): Promise<void> {
     browser,
     devServers,
     workspaceRoot: config.workspaceRoot,
-    ownsGlobals,
   });
   registerUsageTool(server, gate, usage);
 
@@ -109,7 +106,7 @@ async function main(): Promise<void> {
 
   const transport = new StdioServerTransport();
   await server.connect(transport);
-  log.info("Agent Eye MCP server ready (stdio)", { ownsGlobals });
+  log.info("Agent Eye MCP server ready (stdio)", { version: SERVER_VERSION });
 }
 
 main().catch((err) => {

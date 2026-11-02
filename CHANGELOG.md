@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Maintenance**: MCP server now reports its real version (was hard-coded `0.1.0`); root/server/extension versions unified and guarded by a test; removed the dead instance-lock plumbing (`ownsGlobals`) and its stale README/SKILL text; SKILL no longer contradicts itself on closing the browser and its frontmatter description is shorter (it is loaded into every conversation).
 - **Ecosystem tracking**: `docs/ECOSYSTEM.md` (sourced comparison + support matrix) and a weekly `ecosystem-watch` workflow that keeps one rolling "Ecosystem watch" issue updated with new upstream releases.
 - **Scripted composite tools**: `browser_verify_page` (navigate + status + console + failed requests + actionable elements in one call; 124 tokens without the element list) and `browser_batch` (≤20 steps in one call; all steps are permission-checked before any executes). Cuts LLM round-trips for the most common operations. `AGENT_EYE_TOOLSET=core` omits them.
 - **More interaction tools** (closing the gap with Playwright MCP / DevTools MCP): `browser_press_key`, `browser_hover`, `browser_select_option`, `browser_wait_for`, `browser_history` (back/forward/reload), `browser_resize`. JS dialogs are now answered and recorded (`[dialog] …`, default: dismiss confirm/prompt); popups / `target=_blank` tabs are followed and captured. All go through the permission gate. Fixed cost ≈ +780 tokens/session; `AGENT_EYE_TOOLSET=core` opts out.
