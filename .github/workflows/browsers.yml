@@ -1,0 +1,85 @@
+name: browsers
+
+# What ordinary CI (Linux + Playwright's bundled Chromium/Firefox/WebKit) does not cover (Issue #66):
+#   - macOS (build, unit tests, WebKit and Chromium e2e),
+#   - the REAL Google Chrome and Microsoft Edge that the runners ship (AGENT_EYE_BROWSER_CHANNEL=chrome|msedge),
+#   - CDP attach (AGENT_EYE_CDP_URL) against those real browsers, with a non-default --user-data-dir.
+# Runs when the browser code or these scripts change, weekly (browsers auto-update), and on demand.
+on:
+  pull_request:
+    paths:
+      - "packages/mcp-server/src/browser/**"
+      - "packages/mcp-server/src/tools/**"
+      - "packages/mcp-server/e2e-*.mjs"
+      - ".github/workflows/browsers.yml"
+  schedule:
+    - cron: "45 3 * * 1"
+  workflow_dispatch:
+
+jobs:
+  real-browsers:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: "Chrome (Linux)", os: ubuntu-latest, channel: chrome, exe: "/usr/bin/google-chrome" }
+          - { name: "Chrome (macOS)", os: macos-latest, channel: chrome, exe: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" }
+          - { name: "Edge (Windows)", os: windows-latest, channel: msedge, exe: 'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe' }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Browser versions
+        shell: bash
+        run: |
+          if [ "${{ matrix.channel }}" = "chrome" ]; then
+            "${{ matrix.exe }}" --version || true
+          else
+            powershell -NoProfile -Command "(Get-Item '${{ matrix.exe }}').VersionInfo.ProductVersion"
+          fi
+      - name: e2e through the real ${{ matrix.channel }} (channel launch)
+        working-directory: packages/mcp-server
+        shell: bash
+        env:
+          AGENT_EYE_BROWSER_CHANNEL: ${{ matrix.channel }}
+        run: node e2e-browser.mjs
+      - name: CDP attach to the real browser (non-default profile)
+        working-directory: packages/mcp-server
+        shell: bash
+        env:
+          AGENT_EYE_CDP_BROWSER_EXE: ${{ matrix.exe }}
+        run: node e2e-cdp.mjs
+
+  macos:
+    name: macOS (bundled engines)
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm test
+      - run: npx playwright install chromium webkit
+      - name: e2e (WebKit and Chromium)
+        working-directory: packages/mcp-server
+        run: |
+          set -e
+          for engine in webkit chromium; do
+            echo "::group::e2e $engine"
+            AGENT_EYE_BROWSER=$engine node e2e-browser.mjs
+            echo "::endgroup::"
+          done
+      - name: CDP attach (Playwright's Chromium)
+        working-directory: packages/mcp-server
+        run: node e2e-cdp.mjs

@@ -48,7 +48,8 @@ test("processStartSync: a token for a live process, undefined for a gone or inva
   const a = processStartSync(p.pid);
   assert.ok(a);
   assert.equal(a, processStartSync(p.pid), "stable");
-  assert.notEqual(a, processStartSync(process.pid), "different processes differ");
+  // macOS reports the start time with 1-second resolution (`ps -o lstart`), so two processes started in the same second share a token
+  if (process.platform !== "darwin") assert.notEqual(a, processStartSync(process.pid), "different processes differ");
   p.kill();
   assert.ok(await until(() => processStartSync(p.pid) === undefined, 10000), "gone once exited");
   assert.equal(processStartSync(0), undefined);

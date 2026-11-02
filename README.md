@@ -278,7 +278,7 @@ By default Agent Eye launches a **separate, empty profile**: the agent never see
 - Navigation is still limited to the allowlist (localhost by default) and every permission category still applies.
 - Only loopback endpoints are accepted (a CDP endpoint is full control of that browser). It cannot be combined with `AGENT_EYE_BROWSER`, `AGENT_EYE_BROWSER_CHANNEL` or `AGENT_EYE_DEVICE`.
 - **What it still shares with you:** the browser's cookie jar. Navigating its tab to `localhost:3000` sends the cookies that browser holds for `localhost`, and `browser_set_storage` cookies persist there. Use a dedicated browser/profile for dev work if that matters.
-- Recent Chrome ignores `--remote-debugging-port` for the *default* profile, so start it with a non-default `--user-data-dir` (sign in once in that profile). Verified here against Playwright's Chromium only; Chrome/Edge builds were not tested.
+- Recent Chrome ignores `--remote-debugging-port` for the *default* profile, so start it with a non-default `--user-data-dir` (sign in once in that profile). Verified (workflow `browsers`, 2026-11-02) against Playwright's Chromium **and** the real Google Chrome 156 (Linux, macOS) and Microsoft Edge 155 (Windows) that the CI runners ship, using a non-default `--user-data-dir`.
 
 ## Agent Skill: make every agent use it automatically
 
@@ -453,6 +453,8 @@ Layout:
 
 - `packages/mcp-server` — the MCP server (TypeScript, ESM). Entry: `dist/index.js`.
 - `packages/vscode-extension` — the VS Code extension (bundled with esbuild).
+
+**Browsers verified in CI:** Linux (Playwright Chromium/Firefox/WebKit), macOS (WebKit, Chromium, build and unit tests), Windows (unit tests, Edge), and the real Google Chrome 156 (Linux, macOS) and Edge 155 (Windows) both through `AGENT_EYE_BROWSER_CHANNEL` and as CDP targets. Not covered: headed (non-headless) mode in CI, and Safari itself (WebKit is Playwright's build). Known limit: `browser_screenshot ifChanged` compares bytes, and real Chrome on macOS was seen rendering the same static page differently between two captures (11429 vs 11447 bytes) in one run and identically in the next; when that happens it falls back to returning the image.
 
 **Playwright versions:** the Node server and the extension's runtime installer use Playwright **1.64.1** (the server accepts `^1.64.1`; a unit test keeps the extension's pin consistent with the server's range and the lockfile). A weekly workflow (`playwright-latest`) runs the unit tests and every e2e suite (Chromium, Firefox, WebKit, CDP) against the newest Playwright and opens an issue if something breaks. The Python package needs `playwright>=1.60`.
 
