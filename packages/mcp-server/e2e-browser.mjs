@@ -57,6 +57,10 @@ const refMatch = /button "go" \[ref=(e\d+)\]/.exec(textOf(snap));
 check("snapshot emits [ref=eN] handles", !!refMatch);
 const clickRes = await c.callTool({ name: "browser_click", arguments: { target: refMatch ? refMatch[1] : "e0" } });
 check("browser_click works with a snapshot ref", !clickRes.isError);
+const found = textOf(await c.callTool({ name: "browser_snapshot", arguments: { find: "go" } }));
+check("snapshot find= returns the matching element with its ref", /button "go" (\[active\] )?\[ref=e\d+\]/.test(found) && !/agent-eye e2e ok/.test(found));
+const shallow = textOf(await c.callTool({ name: "browser_snapshot", arguments: { depth: 1 } }));
+check("snapshot depth=1 cuts children and says how to expand them", /…\(\+\d+ nodes, expand: selector=e\d+\)/.test(shallow) && !/agent-eye e2e ok/.test(shallow));
 
 const shot = await c.callTool({ name: "browser_screenshot", arguments: {} });
 check("screenshot returns an image", (shot.content || []).some((x) => x.type === "image"));

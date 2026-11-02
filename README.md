@@ -284,7 +284,7 @@ there yourself (project) / to `~/.claude/skills/` (all projects).
 | Tool | Action category | Purpose |
 |---|---|---|
 | `browser_navigate(url)` | interact / highRisk | Open an http(s) URL (allowlisted hosts only). |
-| `browser_snapshot(interactive?, selector?, delta?, maxChars?)` | observe | Accessibility-tree snapshot with `[ref=eN]` handles — the agent's primary "eyes". `interactive` = actionable elements only, `selector` = one subtree, `delta` = only changes since last time; output capped (12k chars). |
+| `browser_snapshot(interactive?, selector?, delta?, depth?, find?, maxChars?)` | observe | Accessibility-tree snapshot with `[ref=eN]` handles — the agent's primary "eyes". `interactive` = actionable elements only, `selector` = one subtree, `delta` = only changes since last time, `depth` = first N levels (cut subtrees say `expand: selector=eN`), `find` = only elements whose role/text matches, each with its ancestor path; output capped (12k chars). |
 | `browser_click(target)` | interact | Click by ref or Playwright selector. |
 | `browser_click_at(x, y)` | interact | Click at viewport coordinates — for canvas UIs (Flutter web, WebGL, games) with no selectable DOM. |
 | `browser_type(target, text, submit?)` | interact / sideEffect | Fill an input; `submit` presses Enter (side-effecting). |
