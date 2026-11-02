@@ -189,6 +189,12 @@ export class BrowserManager {
   private readonly networkBuffer = new RingBuffer<NetworkEntry>(NETWORK_CAPACITY);
   private readonly showCursor = process.env.AGENT_EYE_SHOW_CURSOR === "1";
   private readonly slowMo = Number(process.env.AGENT_EYE_SLOWMO) || 0;
+  /** Pages we already attached console/network/dialog listeners to. */
+  private readonly attached = new WeakSet<Page>();
+  /** How confirm()/prompt() dialogs are answered. alert()/beforeunload are always
+   * accepted (they only inform). Default "dismiss" = never auto-confirm a
+   * destructive "Delete?" prompt. AGENT_EYE_DIALOG=accept to confirm them. */
+  private readonly dialogMode = process.env.AGENT_EYE_DIALOG === "accept" ? "accept" : "dismiss";
   // Lock real user input while the agent drives (headed only, default on).
   // Cross-platform: uses CDP Input.setIgnoreInputEvents — blocks hardware
   // mouse/keyboard but lets the agent's dispatched events through.
@@ -272,6 +278,14 @@ export class BrowserManager {
         this.releaseOwnedPids();
         this.context = undefined;
         this.page = undefined;
+      });
+      // Popups / target=_blank tabs: follow the newest page so the agent keeps seeing
+      // what the user would, and keep capturing its console/network.
+      this.context?.on("page", (p) => {
+        this.page = p;
+        this.attachListeners(p);
+        this.pushConsole("popup", `opened ${p.url() || "(new tab)"}`);
+        void p.bringToFront().catch(() => undefined);
       });
       // Strict accounting: record exactly which OS processes this instance owns
       // (by our unique profile dir) and register them for reaping.
@@ -397,7 +411,27 @@ export class BrowserManager {
     return undefined;
   }
 
+  private pushConsole(type: string, text: string): void {
+    this.consoleBuffer.push({ epoch: this.epoch, timestamp: new Date().toISOString(), type, text: truncate(text, MAX_CONSOLE_TEXT) });
+  }
+
   private attachListeners(page: Page): void {
+    if (this.attached.has(page)) return;
+    this.attached.add(page);
+
+    // JS dialogs would otherwise hang or vanish unseen; answer per dialogMode and
+    // record what happened so the agent can react.
+    page.on("dialog", async (dialog) => {
+      const type = dialog.type();
+      const accept = type === "alert" || type === "beforeunload" || this.dialogMode === "accept";
+      this.pushConsole("dialog", `${type}: "${dialog.message()}" -> ${accept ? "accepted" : "dismissed"}`);
+      try {
+        if (accept) await dialog.accept();
+        else await dialog.dismiss();
+      } catch {
+        /* dialog may already be gone after a navigation */
+      }
+    });
     page.on("request", (request) => {
       try {
         if (request.isNavigationRequest() && request.frame() === page.mainFrame()) this.epoch++;
@@ -489,6 +523,61 @@ export class BrowserManager {
       await locator.fill(text, { timeout: 10_000 });
       if (submit) await locator.press("Enter");
     });
+  }
+
+  async pressKey(key: string): Promise<void> {
+    const page = await this.ensurePage();
+    await this.withUnlocked(page, () => page.keyboard.press(key));
+  }
+
+  async hover(refOrSelector: string): Promise<void> {
+    const page = await this.ensurePage();
+    const locator = this.locate(page, refOrSelector);
+    await this.moveCursorTo(page, locator);
+    await this.withUnlocked(page, () => locator.hover({ timeout: 10_000 }));
+  }
+
+  async selectOption(refOrSelector: string, values: string[]): Promise<string[]> {
+    const page = await this.ensurePage();
+    const locator = this.locate(page, refOrSelector);
+    await this.moveCursorTo(page, locator);
+    return await this.withUnlocked(page, () => locator.selectOption(values, { timeout: 10_000 }));
+  }
+
+  /** Waits for text to appear / disappear and/or a fixed pause (all bounded). */
+  async waitFor(opts: { text?: string; textGone?: string; ms?: number; timeoutMs: number }): Promise<void> {
+    const page = await this.ensurePage();
+    if (opts.ms) await page.waitForTimeout(opts.ms);
+    if (opts.text) await page.getByText(opts.text).first().waitFor({ state: "visible", timeout: opts.timeoutMs });
+    if (opts.textGone) await page.getByText(opts.textGone).first().waitFor({ state: "hidden", timeout: opts.timeoutMs });
+  }
+
+  async history(action: "back" | "forward" | "reload"): Promise<{ url: string; title: string }> {
+    const page = await this.ensurePage();
+    if (action === "reload") return await this.reload();
+    if (action === "back") await page.goBack({ waitUntil: "domcontentloaded" });
+    else await page.goForward({ waitUntil: "domcontentloaded" });
+    return { url: page.url(), title: await page.title() };
+  }
+
+  /** Leaves the current page (used when a history step lands somewhere not allowed). */
+  async blank(): Promise<void> {
+    const page = await this.ensurePage();
+    await page.goto("about:blank").catch(() => undefined);
+  }
+
+  async resize(width: number, height: number): Promise<void> {
+    const page = await this.ensurePage();
+    await page.setViewportSize({ width, height });
+    if (process.env.AGENT_EYE_HEADLESS === "1") return;
+    try {
+      const client = await page.context().newCDPSession(page);
+      const { windowId } = await client.send("Browser.getWindowForTarget");
+      await client.send("Browser.setWindowBounds", { windowId, bounds: { width, height, windowState: "normal" } });
+      await client.detach().catch(() => undefined);
+    } catch {
+      /* the emulated viewport (what layout and screenshots use) is already set */
+    }
   }
 
   /** Click at absolute viewport coordinates. Essential for canvas-rendered UIs

@@ -9,6 +9,7 @@ import { classifyUrl } from "../security/url-guard.js";
 import { classifyCommand } from "../security/command-guard.js";
 import { redactHeaders, redactText } from "../security/redaction.js";
 import { log } from "../logger.js";
+import { registerActionTools } from "./register-actions.js";
 import {
   diffSnapshots,
   filterInteractive,
@@ -35,7 +36,7 @@ export interface ToolContext {
   ownsGlobals: boolean;
 }
 
-type ToolResult = {
+export type ToolResult = {
   content: Array<
     | { type: "text"; text: string }
     | { type: "image"; data: string; mimeType: string }
@@ -43,11 +44,11 @@ type ToolResult = {
   isError?: boolean;
 };
 
-function text(body: string): ToolResult {
+export function text(body: string): ToolResult {
   return { content: [{ type: "text", text: body }] };
 }
 
-function errorResult(body: string): ToolResult {
+export function errorResult(body: string): ToolResult {
   return { content: [{ type: "text", text: body }], isError: true };
 }
 
@@ -290,7 +291,7 @@ export function registerTools(ctx: ToolContext): void {
       description:
         "Console messages and uncaught errors of the CURRENT page load (reset on navigation/reload), duplicates collapsed (×N). Primary signal for frontend bugs.",
       inputSchema: {
-        types: z.array(z.enum(["error", "warning", "log", "info", "debug"])).optional().describe("Only these levels."),
+        types: z.array(z.enum(["error", "warning", "log", "info", "debug", "dialog", "popup"])).optional().describe("Only these levels."),
         limit: z.number().int().positive().max(500).optional().describe("Max distinct messages (default 50)."),
         includeHistory: z.boolean().optional().describe("Include earlier page loads."),
       },
@@ -516,10 +517,12 @@ export function registerTools(ctx: ToolContext): void {
     }
   );
 
+  registerActionTools(ctx);
+
   log.info("Registered Agent Eye tools");
 }
 
-function toolError(tool: string, prefix: string, err: unknown, artifacts: ArtifactStore): ToolResult {
+export function toolError(tool: string, prefix: string, err: unknown, artifacts: ArtifactStore): ToolResult {
   const message = err instanceof Error ? err.message : String(err);
   artifacts.record({ type: "tool_call", tool, title: prefix, detail: message, status: "error" });
   return errorResult(`${prefix}: ${message}`);

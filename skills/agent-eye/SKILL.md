@@ -47,6 +47,10 @@ fix code**, not a stage for a finished result. Antigravity-style rules:
 | `browser_screenshot(fullPage?)` | Visual check; REQUIRED for canvas UIs; saved to the user's timeline |
 | `browser_click(target)` / `browser_type(target, text, submit?)` | Interact via snapshot ref or Playwright selector |
 | `browser_click_at(x, y)` | Canvas UIs (Flutter web, WebGL, games): read coordinates off a screenshot, click them |
+| `browser_press_key(key)` / `browser_hover(target)` / `browser_select_option(target, values)` | Keyboard, hover menus, `<select>` — no need to hack around with selectors |
+| `browser_wait_for(text?, textGone?, ms?)` | Wait for async UI instead of polling snapshots |
+| `browser_history(back\|forward\|reload)` | Reload to re-verify after a code change |
+| `browser_resize(width, height)` | Responsive / mobile layout checks |
 | `browser_get_console_logs(types?, limit?)` | #1 bug signal: JS errors, warnings, stack traces — current page load only, so after a reload an empty result means the error is gone |
 | `browser_get_network_requests(failedOnly?, urlContains?)` | Verify frontend↔backend↔DB integration: one line per request (method, status, URL). Start with `failedOnly`; headers/static assets only when needed |
 
