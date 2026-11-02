@@ -304,9 +304,7 @@ class AgentEye:
             body = "(no changes since last snapshot)" if diff is None else f"(changes since last snapshot)\n{diff}"
         capped = fmt.truncate_text(body, max_chars, "Narrow with selector, find, depth, interactive=true or delta=true.")
         if self._no_refs:
-            hint += "
-
-Note: this Playwright version cannot emit [ref=eN] handles; upgrade playwright (>=1.60) or target elements with selectors."
+            hint += "\n\nNote: this Playwright version cannot emit [ref=eN] handles; upgrade playwright (>=1.60) or target elements with selectors."
         return _frame(page.url, capped["text"]) + hint
 
     def _aria(self, page, selector: Optional[str]) -> str:
