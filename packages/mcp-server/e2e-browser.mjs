@@ -132,18 +132,23 @@ const shot1 = await call("browser_screenshot", { ifChanged: true });
 const shot2 = await call("browser_screenshot", { ifChanged: true });
 check("screenshot ifChanged: first shot returns the image", hasImage(shot1));
 const imgOf = (r) => Buffer.from((r.content || []).find((x) => x.type === "image")?.data ?? "", "base64");
-// ifChanged compares bytes, so it can only help where the browser renders a static page byte-identically. Probe that first with two
-// plain captures (independent of the ifChanged logic): real Google Chrome on macOS was observed to differ between two captures of the
-// same static page (e.g. 11429 vs 11447 bytes), where it simply degrades to returning the image. Unstable rendering is reported, not failed;
-// stable rendering with a wrong answer still fails.
-const [p1, p2] = [imgOf(await call("browser_screenshot", {})), imgOf(await call("browser_screenshot", {}))];
-check("screenshot stability probe captured two images", p1.length > 0 && p2.length > 0);
-const renderingStable = p1.length > 0 && p1.equals(p2);
-if (renderingStable) {
-  check("screenshot ifChanged: identical page -> one line, no image", !hasImage(shot2) && /unchanged/i.test(textOf(shot2)), textOf(shot2));
-} else {
-  console.log(`SKIP  screenshot ifChanged: identical page -> one line (this browser does not render a static page byte-identically: ${p1.length} vs ${p2.length} bytes; ifChanged then returns the image, which is the safe fallback)`);
+// ifChanged's decision is a pure function of the captured bytes, so verify it against the bytes it returns, with a few tries for the page to
+// settle. Real Google Chrome on macOS renders a static page *intermittently* differently between captures (e.g. 11429 vs 11447 bytes); there
+// ifChanged correctly keeps returning the image, which is reported as a SKIP. Two consecutive IDENTICAL images that were not answered with
+// "unchanged" is a real bug and fails.
+let answer = shot2;
+let previous = imgOf(shot1);
+let verdict = hasImage(answer) ? "pending" : "unchanged";
+for (let attempt = 0; verdict === "pending" && attempt < 5; attempt++) {
+  const current = imgOf(answer);
+  if (current.length > 0 && current.equals(previous)) { verdict = "bug"; break; }
+  previous = current;
+  answer = await call("browser_screenshot", { ifChanged: true });
+  if (!hasImage(answer)) verdict = "unchanged";
 }
+if (verdict === "unchanged") check("screenshot ifChanged: identical page -> one line, no image", /unchanged/i.test(textOf(answer)), textOf(answer));
+else if (verdict === "bug") check("screenshot ifChanged: identical page -> one line, no image", false, "two consecutive captures were byte-identical but the tool returned the image again");
+else console.log("SKIP  screenshot ifChanged: identical page -> one line (this browser did not render the static page byte-identically across 6 captures; ifChanged then returns the image, the safe fallback)");
 await call("browser_type", { target: "#i", text: "changed-input" });
 check("screenshot ifChanged: after a visible change the image is returned again", hasImage(await call("browser_screenshot", { ifChanged: true })));
 check("screenshot without ifChanged always returns the image", hasImage(await call("browser_screenshot", {})));
