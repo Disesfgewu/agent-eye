@@ -33,8 +33,10 @@ with AgentEye(workspace=".", on_approve=lambda title, detail: True) as eye:
     eye.screenshot(save_path="page.png")
 ```
 
-Methods: `navigate`, `snapshot`, `click`, `click_at`, `type`, `screenshot`,
-`get_console_logs`, `get_network_requests`, `evaluate` (high-risk),
+Methods: `navigate`, `snapshot(interactive, selector, delta, depth, find, max_chars)`, `click`, `click_at`,
+`type`, `press_key`, `hover`, `select_option`, `wait_for`, `history`, `resize`, `screenshot`,
+`console(types, limit, include_history)` and `network(failed_only, url_contains, include_static, ...)`
+(compact, current page load only), raw `get_console_logs` / `get_network_requests`, `evaluate` (high-risk),
 `detect_project`, `start_dev_server`, `get_dev_server_logs`, `stop_dev_server`.
 
 ### Any stack, not just JavaScript
@@ -82,10 +84,12 @@ fixed on one side and missing on the other fails the build.
 | URL / command / interpreter / toolchain guards, redaction, policy | yes | yes |
 | `detect_project`, `start_dev_server(port=...)` readiness wait | yes | yes |
 | Snapshot with `[ref=eN]` handles, metadata-host request blocking (Chromium) | yes | yes |
-| press / hover / select / wait_for / history / resize | **no** | yes |
-| `verify_page`, `batch`, compact `delta`/`interactive` snapshot, console/network page-load scoping | **no** | yes |
+| press / hover / select / wait_for / history (post-checked against the allowlist) / resize, dialogs and popups | yes | yes |
+| Compact output: snapshot `interactive`/`selector`/`delta`/`depth`/`find`/cap, one-line network, console/network scoped to the current page load | yes (golden-tested against the Node formatters) | yes |
+| `verify_page`, `batch` | **no** | yes |
 | Token usage ledger + `usage_report` | **no** | yes |
-| Firefox / WebKit / device emulation | **no** | yes |
+| Firefox / WebKit / device emulation, CDP attach | **no** | yes |
+| `set_storage`, `upload_file`, `perf_summary`, screenshot `ifChanged` | **no** | yes |
 
 ## Tests
 

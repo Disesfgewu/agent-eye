@@ -1,6 +1,7 @@
 import type { Browser, BrowserContext, Page, ConsoleMessage } from "playwright";
 import { log } from "../logger.js";
 import { RingBuffer } from "./ring-buffer.js";
+import { parseRef } from "./format.js";
 import { PERF_COLLECT_SCRIPT, PERF_INIT_SCRIPT, type RawPerf } from "./perf.js";
 import { findPidsUsingDir } from "../reaper.js";
 import { BLOCKED_HOST_RESOLVER_RULES, isBlockedHost } from "../security/url-guard.js";
@@ -881,9 +882,9 @@ export class BrowserManager {
 
   private locate(page: Page, refOrSelector: string) {
     const trimmed = refOrSelector.trim();
-    const refMatch = /^(?:ref=|aria-ref=)?(e\d+)$/.exec(trimmed);
-    if (refMatch) {
-      return page.locator(`aria-ref=${refMatch[1]}`);
+    const ref = parseRef(trimmed);
+    if (ref) {
+      return page.locator(`aria-ref=${ref}`);
     }
     return page.locator(trimmed);
   }
