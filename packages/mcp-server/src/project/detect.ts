@@ -310,7 +310,7 @@ export function detectProjects(rawFiles: Files, opts: DetectOptions = {}): Detec
       const key = `${p.dir}|${p.command}|${p.args.join(" ")}`;
       return seen.has(key) ? false : (seen.add(key), true);
     })
-    .sort((a, b) => a.dir.split("/").length - b.dir.split("/").length || a.dir.localeCompare(b.dir))
+    .sort((a, b) => a.dir.split("/").length - b.dir.split("/").length || (a.dir < b.dir ? -1 : a.dir > b.dir ? 1 : 0))
     .slice(0, opts.maxProjects ?? 12);
   return { projects, notes };
 }

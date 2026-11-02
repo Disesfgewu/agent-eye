@@ -93,9 +93,16 @@ def main() -> None:
         return guarded(lambda: json.dumps(eye.get_network_requests(limit)))
 
     @mcp.tool()
-    def start_dev_server(id: str, command: str, args: list = [], cwd: str = ".") -> str:
-        """Start an allowlisted dev-server command (cwd confined to workspace)."""
-        return guarded(lambda: eye.start_dev_server(id, command, args, cwd))
+    def detect_project(path: str = "") -> str:
+        """List runnable projects (JS, Go, Rust, .NET, JVM, Elixir, Python, PHP, Ruby, Flutter, static) with exact
+        start_dev_server args + port. Read-only; call first on an unfamiliar repo."""
+        return guarded(lambda: eye.detect_project(path or None))
+
+    @mcp.tool()
+    def start_dev_server(id: str, command: str, args: list = [], cwd: str = ".", port: int = 0, wait_seconds: int = 0) -> str:
+        """Start an allowlisted dev-server command (cwd confined to workspace). With port, wait until it listens
+        or exits (build errors are returned); else return at once and poll get_dev_server_logs."""
+        return guarded(lambda: eye.start_dev_server(id, command, args, cwd, port or None, wait_seconds or None))
 
     @mcp.tool()
     def get_dev_server_logs(id: str, limit: int = 200) -> str:

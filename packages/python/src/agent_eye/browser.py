@@ -21,6 +21,8 @@ from typing import Callable, Optional
 from .policy import Policy, PermissionGate
 from .devserver import DevServerManager
 from . import guards
+from . import detect as detect_mod
+from .ready import extract_ports, port_open, wait_for_port
 
 CONSOLE_CAPACITY = 500
 NETWORK_CAPACITY = 500
@@ -149,6 +151,8 @@ class AgentEye:
             device_scale_factor=int(os.environ.get("AGENT_EYE_DEVICE_SCALE") or 2),
             args=[
                 "--no-first-run",
+                # Page-initiated requests to cloud-metadata hosts can never resolve (SSRF defense).
+                f"--host-resolver-rules={guards.BLOCKED_HOST_RESOLVER_RULES}",
                 "--no-default-browser-check",
                 "--disable-save-password-bubble",
                 "--disable-features=PasswordManager,AutofillServerCommunication,Translate",
@@ -215,7 +219,10 @@ class AgentEye:
         self.gate.check("observe", "Read page snapshot")
         page = self._ensure_page()
         try:
-            snap = page.locator("body").aria_snapshot()
+            # mode="ai" adds the [ref=eN] handles that click/type targets rely on (Playwright >= 1.5x).
+            snap = page.locator("body").aria_snapshot(mode="ai")
+        except TypeError:
+            snap = page.locator("body").aria_snapshot()  # older Playwright: no refs
         except Exception:
             snap = "(snapshot unavailable)"
         hint = ""
@@ -291,7 +298,27 @@ class AgentEye:
         return page.evaluate(expression)
 
     # -- dev servers -------------------------------------------------------
-    def start_dev_server(self, sid: str, command: str, args=None, cwd: str = ".") -> str:
+    def detect_project(self, path: Optional[str] = None) -> str:
+        """Read-only scan for runnable projects: exact start_dev_server arguments + expected port."""
+        self.gate.check("observe", "Detect project", path or ".")
+        ws = os.path.realpath(self.workspace)
+        root = os.path.realpath(os.path.join(ws, path or "."))
+        if not guards._inside(ws, root):
+            raise guards_error(f'path "{path}" resolves outside the workspace.')
+        prefix = os.path.relpath(root, ws).replace(os.sep, "/")
+        result = detect_mod.detect_projects(detect_mod.scan_workspace(root))
+        verdicts = []
+        for p in result.projects:
+            if prefix != ".":
+                p.dir = prefix if p.dir == "." else f"{prefix}/{p.dir}"
+            verdict, reason, _ = guards.classify_command(p.command, p.args, p.dir, self.workspace, self.policy.command_allowlist)
+            verdicts.append(None if verdict == "allowlisted" else reason)
+        return detect_mod.format_detected(result, verdicts)
+
+    def start_dev_server(self, sid: str, command: str, args=None, cwd: str = ".",
+                         port: Optional[int] = None, wait_seconds: Optional[int] = None) -> str:
+        """Start a managed dev server. With ``port``, wait (loopback only, max 55 s per call) until it accepts
+        connections; raise RuntimeError with the last log lines if the process exits first."""
         args = list(args or [])
         verdict, reason, resolved = guards.classify_command(
             command, args, cwd, self.workspace, self.policy.command_allowlist
@@ -300,8 +327,41 @@ class AgentEye:
             raise guards_error(f"Command blocked: {reason}")
         self.gate.check("execute" if verdict == "allowlisted" else "highRisk",
                         f'Start dev server "{sid}"', f"{command} {' '.join(args)}", remember=True)
+        status = self._dev.get_status(sid)
+        running = bool(status and status["status"] == "running")
+        # A foreign process already on the port would make the wait report "ready" for the wrong server.
+        if port is not None and not running and port_open(port):
+            raise RuntimeError(
+                f'Port {port} already accepts connections (another process). Not starting "{sid}"; '
+                "pick a different port or stop that process."
+            )
         already = self._dev.start(sid, command, args, resolved)
-        return "already running" if already else f'started "{sid}"'
+        head = f'Dev server "{sid}" is already running.' if already else f'started "{sid}"'
+        if port is None:
+            return head
+        state, elapsed = wait_for_port(
+            port,
+            float(min(max(wait_seconds or 30, 1), 55)),
+            lambda: (self._dev.get_status(sid) or {}).get("status") == "running",
+        )
+        lines = [entry["text"] for entry in (self._dev.get_logs(sid, 200) or [])]
+        tail = "\n".join(l if len(l) <= 200 else l[:200] + "..." for l in lines[-12:]) or "(no output)"
+        secs = f"{elapsed:.1f}"
+        if state == "ready":
+            return f"{head}\nReady: http://localhost:{port} ({secs}s)."
+        if state == "exited":
+            code = (self._dev.get_status(sid) or {}).get("exit_code")
+            raise RuntimeError(
+                f'Dev server "{sid}" exited{f" with code {code}" if code is not None else ""} after {secs}s '
+                f"before port {port} opened. Last output:\n{tail}"
+            )
+        seen = [p for p in extract_ports(lines) if p != port]
+        return (
+            f"{head}\nStill running but port {port} is not accepting connections after {secs}s "
+            "(compiled stacks can be slow)."
+            + (f" Ports mentioned in the logs: {', '.join(map(str, seen))}." if seen else "")
+            + f"\nCall start_dev_server again with the same id and port to keep waiting.\nLast output:\n{tail}"
+        )
 
     def get_dev_server_logs(self, sid: str, limit: Optional[int] = None):
         self.gate.check("observe", f'Read logs for "{sid}"')
