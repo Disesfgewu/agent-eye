@@ -443,6 +443,131 @@ class AgentEye:
         self.gate.check("interact", f"Resize to {width}x{height}")
         self._ensure_page().set_viewport_size({"width": int(width), "height": int(height)})
 
+    # -- composite tools (Issue #3): one call instead of 4-10 LLM turns --------
+    def _check_navigation(self, url: str) -> None:
+        """The same rules as navigate(), without navigating."""
+        verdict, reason = guards.classify_url(url, self.policy.navigation_allowlist)
+        if verdict == "blocked":
+            raise guards_error(f"Navigation blocked: {reason}")
+        self.gate.check("interact" if verdict == "allowlisted" else "highRisk", f"Navigate to {url}", reason)
+
+    def _health_report(self, snapshot: str, max_lines: int) -> str:
+        page = self._ensure_page()
+        redact = self.policy.redact_sensitive_headers
+        out = fmt.format_health({
+            "url": page.url, "title": page.title(),
+            "console": [e for e in self._console if e.get("epoch") == self._epoch],
+            "network": [e for e in self._network if e.get("epoch") == self._epoch],
+            "origin": self._origin(), "redact": lambda u: guards.redact_text(u, redact), "maxLines": max_lines,
+        })
+        if snapshot == "interactive":
+            body = fmt.filter_interactive(self._aria(page, None)) or "(no interactive elements; canvas UI? use screenshot)"
+            out += "\nInteractive elements:\n" + fmt.truncate_text(body, 4000, "Use snapshot(selector=...) for more.")["text"]
+        return out
+
+    def verify_page(self, url: Optional[str] = None, wait_for_text: Optional[str] = None,
+                    snapshot: str = "interactive", settle_ms: int = 500) -> str:
+        """One call: optionally navigate, wait for load, then report document status, console errors/warnings,
+        failed requests and (optionally) the actionable elements. Use instead of navigate + snapshot + console + network."""
+        if snapshot not in ("none", "interactive"):
+            raise ValueError('snapshot must be "none" or "interactive"')
+        if url:
+            self._check_navigation(url)
+        self.gate.check("observe", "Verify page health")
+        with self.gate.preapproved():
+            if url:
+                self.navigate(url)
+            settle = min(max(int(settle_ms), 0), 5000)
+            if wait_for_text or settle:
+                self.wait_for(text=wait_for_text, ms=settle, timeout_ms=10000)
+            report = self._health_report(snapshot, 10)
+        return _frame(self._ensure_page().url, report)
+
+    _BATCH_ACTIONS = ("navigate", "click", "type", "press", "select", "hover", "wait")
+
+    @staticmethod
+    def _plan_step(s: dict):
+        """Static validation + the gate category a step needs: (category, title) or an error string."""
+        a = s.get("action")
+        if a == "navigate":
+            return ("interact", f"Navigate to {s['url']}") if s.get("url") else "navigate needs url"
+        if a == "click":
+            return ("interact", f"Click {s['target']}") if s.get("target") else "click needs target"
+        if a == "hover":
+            return ("interact", f"Hover {s['target']}") if s.get("target") else "hover needs target"
+        if a == "type":
+            if s.get("target") and s.get("text") is not None:
+                return ("sideEffect" if s.get("submit") else "interact", f"Type into {s['target']}{' and submit' if s.get('submit') else ''}")
+            return "type needs target and text"
+        if a == "press":
+            return ("sideEffect" if re.search(r"(^|\+)Enter$", s["key"]) else "interact", f"Press {s['key']}") if s.get("key") else "press needs key"
+        if a == "select":
+            return ("interact", f"Select in {s['target']}") if s.get("target") and s.get("values") else "select needs target and values"
+        if a == "wait":
+            return ("observe", "Wait") if s.get("text") or s.get("ms") else "wait needs text and/or ms"
+        return f"unknown action {a!r} (use {', '.join(AgentEye._BATCH_ACTIONS)})"
+
+    def _run_step(self, s: dict) -> str:
+        a = s["action"]
+        if a == "navigate":
+            r = self.navigate(s["url"])
+            return f'{r["url"]} "{r["title"]}"'
+        if a == "click":
+            self.click(s["target"])
+            return s["target"]
+        if a == "hover":
+            self.hover(s["target"])
+            return s["target"]
+        if a == "type":
+            self.type(s["target"], s["text"], bool(s.get("submit")))
+            return s["target"]
+        if a == "press":
+            self.press_key(s["key"])
+            return s["key"]
+        if a == "select":
+            return ", ".join(self.select_option(s["target"], s["values"]))
+        self.wait_for(text=s.get("text"), ms=int(s.get("ms") or 0), timeout_ms=int(s.get("timeoutMs") or 10000))
+        return s.get("text") or f"{s.get('ms')}ms"
+
+    def batch(self, steps: list, report: str = "health") -> str:
+        """Run up to 20 steps (navigate/click/type/press/select/hover/wait) in ONE call and get per-step status plus a
+        page-health summary. Every step is permission-checked BEFORE any runs (a denied step means nothing ran);
+        execution stops at the first failure and raises BatchFailed with the same report."""
+        if not steps or len(steps) > 20:
+            raise ValueError("steps must contain 1-20 steps")
+        # Phase 1: validate and permission-check EVERY step before executing any.
+        for i, s in enumerate(steps):
+            p = self._plan_step(s)
+            if isinstance(p, str):
+                raise ValueError(f"Step {i + 1}: {p}. Nothing was executed.")
+            try:
+                if s["action"] == "navigate":
+                    self._check_navigation(s["url"])
+                else:
+                    self.gate.check(p[0], p[1])
+            except Exception as e:  # PolicyError: the step is not permitted
+                raise guards_error(f"Step {i + 1} ({s['action']}) not permitted: {e}\nNothing was executed.") from e
+        # Phase 2: execute (the gate already approved exactly these steps).
+        lines: list = []
+        failed = False
+        with self.gate.preapproved():
+            for i, s in enumerate(steps):
+                if failed:
+                    lines.append(f"{i + 1}. {s['action']} – skipped")
+                    continue
+                try:
+                    self.show_status(f"Agent Eye｜step {i + 1}/{len(steps)}: {s['action']}")
+                    lines.append(f"{i + 1}. {s['action']} ✓ {self._run_step(s)}")
+                except Exception as e:
+                    failed = True
+                    lines.append(f"{i + 1}. {s['action']} ✗ {str(e).splitlines()[0][:200] if str(e) else type(e).__name__}")
+            out = "\n".join(lines)
+            if report == "health" and self._page is not None and self._page.url != "about:blank":
+                out += "\n\n" + _frame(self._page.url, self._health_report("none", 5))
+        if failed:
+            raise BatchFailed(out)
+        return out
+
     def show_status(self, message: str) -> None:
         """Show a live status banner in the page narrating what the agent is
         doing right now (no-op if watch-along is off or no page is open)."""
@@ -545,6 +670,10 @@ class AgentEye:
         if ref:
             return page.locator(f"aria-ref={ref}")
         return page.locator(t)
+
+
+class BatchFailed(RuntimeError):
+    """A step of batch() failed; the message is the full per-step report (later steps are marked skipped)."""
 
 
 def guards_error(msg: str) -> Exception:

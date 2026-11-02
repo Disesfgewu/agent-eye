@@ -10,12 +10,15 @@ default; high-risk actions stay denied.
 """
 from __future__ import annotations
 
+import concurrent.futures
+import functools
 import json
 import os
 import sys
 
 from .browser import AgentEye
 from .policy import PolicyError
+from .usage import UsageLedger, estimate_tool_definition_tokens, measured
 
 
 def _arg(name: str):
@@ -32,12 +35,17 @@ def _arg(name: str):
 
 def main() -> None:
     try:
-        from mcp.server.fastmcp import FastMCP
-    except Exception:
-        sys.stderr.write(
-            "The MCP server requires the 'mcp' extra. Install with: pip install \"agent-eye[mcp]\"\n"
-        )
-        sys.exit(1)
+        from mcp.server.mcpserver import MCPServer as FastMCP  # mcp >= 2 renamed FastMCP to MCPServer
+    except ImportError:
+        try:
+            from mcp.server.fastmcp import FastMCP  # mcp 1.x
+        except ImportError as exc:
+            # Say what actually failed: "install the extra" is wrong when it IS installed but too new/old/broken.
+            sys.stderr.write(
+                "The MCP server requires the 'mcp' package (pip install \"agent-eye[mcp]\"; mcp 1.x and 2.x are supported).\n"
+                f"Import failed: {exc}\n"
+            )
+            sys.exit(1)
 
     workspace = _arg("--workspace") or os.environ.get("AGENT_EYE_WORKSPACE") or os.getcwd()
     auto = os.environ.get("AGENT_EYE_AUTO_APPROVE") == "1"
@@ -48,6 +56,27 @@ def main() -> None:
     )
 
     mcp = FastMCP("agent-eye")
+
+    # Token ledger (Issue #1): every tool declared below is measured; usage_report reads it back.
+    ledger = UsageLedger(os.path.join(os.path.abspath(workspace), ".agent-artifacts"))
+    _declare = mcp.tool
+
+    # Playwright's sync API is thread-affine and refuses to run inside an asyncio loop. mcp 1.x calls sync tools
+    # on the event loop, mcp 2.x on arbitrary worker threads: neither is safe. Run EVERY tool (and the final
+    # close) on one dedicated thread so the browser always lives and dies on the same thread.
+    worker = concurrent.futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="agent-eye")
+
+    def on_worker(fn):
+        @functools.wraps(fn)
+        def run(*args, **kwargs):
+            return worker.submit(fn, *args, **kwargs).result()
+        return run
+
+    def _measured_tool(*a, **kw):
+        decorate = _declare(*a, **kw)
+        return lambda fn: decorate(measured(ledger, fn.__name__, on_worker(fn)))
+
+    mcp.tool = _measured_tool
 
     def guarded(fn):
         try:
@@ -95,6 +124,19 @@ def main() -> None:
                                      limit: int = 100, include_history: bool = False) -> str:
         """One line per request of the CURRENT page load (static assets hidden unless failed). Start with failed_only."""
         return guarded(lambda: eye.network(failed_only, url_contains or None, include_static, limit, include_history))
+
+    @mcp.tool()
+    def browser_verify_page(url: str = "", wait_for_text: str = "", snapshot: str = "interactive", settle_ms: int = 500) -> str:
+        """One call: optionally navigate, wait for load, then report document status, console errors/warnings,
+        failed requests and the actionable elements. Use instead of navigate + snapshot + console + network."""
+        return guarded(lambda: eye.verify_page(url or None, wait_for_text or None, snapshot, settle_ms))
+
+    @mcp.tool()
+    def browser_batch(steps: list, report: str = "health") -> str:
+        """Run up to 20 steps in ONE call and get per-step status plus a page-health summary. Steps are dicts:
+        navigate{url} click/hover{target} type{target,text,submit?} press{key} select{target,values} wait{text?|ms?,timeoutMs?}.
+        Every step is permission-checked before any runs; stops at the first failure."""
+        return guarded(lambda: eye.batch(steps, report))
 
     @mcp.tool()
     def browser_press_key(key: str) -> str:
@@ -148,10 +190,28 @@ def main() -> None:
         """Stop a dev server this tool started."""
         return guarded(lambda: f"stopped {id}" if eye.stop_dev_server(id) else f"no server {id}")
 
+    @mcp.tool()
+    def usage_report() -> str:
+        """Estimated token cost of Agent Eye tool calls this session (per tool). Read-only; call when asked how much a task cost."""
+        return guarded(lambda: (eye.gate.check("observe", "Read token usage"), ledger.report())[1])
+
+    try:
+        import asyncio
+        tools = asyncio.run(mcp.list_tools())
+        ledger.set_tool_definition_overhead(
+            sum(estimate_tool_definition_tokens(t.name, t.description or "", t.inputSchema) for t in tools), len(tools)
+        )
+    except Exception:
+        pass  # measurement only
+
     try:
         mcp.run()
     finally:
-        eye.close()
+        try:
+            worker.submit(eye.close).result(timeout=30)
+        finally:
+            worker.shutdown(wait=False)
+            ledger.flush()
 
 
 if __name__ == "__main__":

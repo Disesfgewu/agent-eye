@@ -1,0 +1,148 @@
+{
+ "_comment": "Golden token estimates from the TypeScript reference (usage/estimate.ts); executed by the Node and Python suites.",
+ "text": [
+  {
+   "text": "",
+   "tokens": 0
+  },
+  {
+   "text": "a",
+   "tokens": 1
+  },
+  {
+   "text": "abcd",
+   "tokens": 1
+  },
+  {
+   "text": "abcde",
+   "tokens": 2
+  },
+  {
+   "text": "hello world, this is ascii text",
+   "tokens": 8
+  },
+  {
+   "text": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "tokens": 250
+  },
+  {
+   "text": "你好，世界",
+   "tokens": 5
+  },
+  {
+   "text": "混合 mixed ascii 和中文 text",
+   "tokens": 10
+  },
+  {
+   "text": "emoji 😀 test 🎉",
+   "tokens": 5
+  },
+  {
+   "text": "é à ü ñ",
+   "tokens": 5
+  },
+  {
+   "text": "line1\nline2\n\tindented",
+   "tokens": 6
+  },
+  {
+   "text": "{\"target\":\"e12\",\"text\":\"hello\",\"submit\":true}",
+   "tokens": 12
+  }
+ ],
+ "images": [
+  {
+   "name": "png 1280x800",
+   "data": "iVBORw0KGgoAAAANSUhEUgAABQAAAAMgAAAAAAAAAAAA",
+   "tokens": 1366
+  },
+  {
+   "name": "png 100x100",
+   "data": "iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAAAAAAAAAAAA",
+   "tokens": 14
+  },
+  {
+   "name": "png 4000x3000 (downscaled)",
+   "data": "iVBORw0KGgoAAAANSUhEUgAAD6AAAAu4AAAAAAAAAAAA",
+   "tokens": 1600
+  },
+  {
+   "name": "png 1x1",
+   "data": "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABAAAAAAAAAAAA",
+   "tokens": 1
+  },
+  {
+   "name": "png 0x0 (invalid)",
+   "data": "iVBORw0KGgoAAAANSUhEUgAAAAAAAAAAAAAAAAAAAAAA",
+   "tokens": 1600
+  },
+  {
+   "name": "jpeg 800x600",
+   "data": "/9j/4AAQSkZJRgABAQAAAQABAAD/wAARCAJYAyADAAAAAAAAAAAA",
+   "tokens": 640
+  },
+  {
+   "name": "jpeg 3000x2000",
+   "data": "/9j/4AAQSkZJRgABAQAAAQABAAD/wAARCAfQC7gDAAAAAAAAAAAA",
+   "tokens": 1600
+  },
+  {
+   "name": "not an image",
+   "data": "bm90IGFuIGltYWdlIGF0IGFsbA==",
+   "tokens": 1600
+  },
+  {
+   "name": "empty",
+   "data": "",
+   "tokens": 1600
+  }
+ ],
+ "results": [
+  {
+   "content": [],
+   "tokens": 0
+  },
+  {
+   "content": [
+    {
+     "type": "text",
+     "text": "hello world"
+    }
+   ],
+   "tokens": 3
+  },
+  {
+   "content": [
+    {
+     "type": "text",
+     "text": "Screenshot captured."
+    },
+    {
+     "type": "image",
+     "data": "iVBORw0KGgoAAAANSUhEUgAABQAAAAMgAAAAAAAAAAAA",
+     "mimeType": "image/png"
+    }
+   ],
+   "tokens": 1371
+  },
+  {
+   "content": [
+    {
+     "type": "text",
+     "text": "你好"
+    },
+    {
+     "type": "text",
+     "text": ""
+    },
+    {
+     "type": "image"
+    },
+    {
+     "type": "resource"
+    }
+   ],
+   "tokens": 2
+  }
+ ]
+}

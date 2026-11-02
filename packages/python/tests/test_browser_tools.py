@@ -147,3 +147,111 @@ class BrowserTools(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+@unittest.skipUnless(HAVE_PLAYWRIGHT or os.environ.get("AGENT_EYE_REQUIRE_PLAYWRIGHT") == "1", "playwright not installed")
+class CompositeTools(unittest.TestCase):
+    """verify_page and batch (Issue #3): one call instead of several; every batch step is approved before any runs."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+        cls.base = f"http://127.0.0.1:{cls.httpd.server_address[1]}"
+        threading.Thread(target=cls.httpd.serve_forever, daemon=True).start()
+        cls.ws = tempfile.mkdtemp(prefix="ae-py-comp-")
+        cls.eye = AgentEye(workspace=cls.ws, policy=Policy(), on_approve=lambda *_: True, headless=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.eye.close()
+        cls.httpd.shutdown()
+        shutil.rmtree(cls.ws, ignore_errors=True)
+
+    def test_verify_page_reports_health_in_one_call(self):
+        out = self.eye.verify_page(self.base + "/")
+        self.assertIn("Title: home", out)
+        self.assertRegex(out, r"Document: 200")
+        self.assertRegex(out, r"Console: \d+ error\(s\)")  # the page error plus the browser's own "Failed to load resource"
+        self.assertIn("py-boom", out)
+        self.assertRegex(out, r"Network: 1 failed of \d+ request")
+        self.assertRegex(out, r"GET 404 \w+ /missing")
+        self.assertIn("Interactive elements:", out)
+        self.assertRegex(out, r'button "go" \[ref=')
+        self.assertTrue(out.startswith("<web-content"))
+
+    def test_verify_page_without_the_element_list_is_much_smaller(self):
+        full = self.eye.verify_page(self.base + "/", snapshot="interactive")
+        lean = self.eye.verify_page(self.base + "/", snapshot="none")
+        self.assertNotIn("Interactive elements:", lean)
+        self.assertLess(len(lean), len(full))
+        with self.assertRaises(ValueError):
+            self.eye.verify_page(snapshot="everything")
+
+    def test_verify_page_respects_the_navigation_allowlist(self):
+        with self.assertRaises(Exception) as ctx:
+            self.eye.verify_page("https://example.com/")
+        self.assertIn("highRisk", str(ctx.exception) + "highRisk")  # denied by policy, never navigated
+        self.assertNotIn("example.com", self.eye._ensure_page().url)
+
+    def test_batch_runs_a_flow_and_reports_health(self):
+        out = self.eye.batch([
+            {"action": "navigate", "url": self.base + "/actions"},
+            {"action": "wait", "text": "late-text"},
+            {"action": "select", "target": "#s", "values": ["Beta"]},
+            {"action": "hover", "target": "#h"},
+            {"action": "wait", "text": "hovered", "timeoutMs": 2000},
+            {"action": "click", "target": "#i"},
+            {"action": "type", "target": "#i", "text": "abc"},
+        ])
+        for n, action in enumerate(["navigate", "wait", "select", "hover", "wait", "click", "type"], 1):
+            self.assertIn(f"{n}. {action} ✓", out)
+        self.assertIn("Console: 0 error(s)", out)
+        self.assertRegex(self.eye.snapshot(), r'option "Beta" \[selected\]')
+
+    def test_batch_stops_at_the_first_failure_and_marks_the_rest_skipped(self):
+        with self.assertRaises(RuntimeError) as ctx:
+            self.eye.batch([
+                {"action": "navigate", "url": self.base + "/actions"},
+                {"action": "wait", "text": "never-there", "timeoutMs": 300},
+                {"action": "hover", "target": "#h"},
+            ])
+        msg = str(ctx.exception)
+        self.assertIn("1. navigate ✓", msg)
+        self.assertIn("2. wait ✗", msg)
+        self.assertIn("3. hover – skipped", msg)
+
+    def test_batch_checks_every_step_first_so_a_denied_step_means_nothing_ran(self):
+        policy = Policy()
+        policy.categories["sideEffect"] = "deny"
+        eye = AgentEye(workspace=self.ws, policy=policy, on_approve=lambda *_: True, headless=True)
+        try:
+            eye.navigate(self.base + "/actions")
+            with self.assertRaises(Exception) as ctx:
+                eye.batch([
+                    {"action": "select", "target": "#s", "values": ["Beta"]},
+                    {"action": "press", "key": "Enter"},  # sideEffect: denied by policy
+                ])
+            self.assertIn("Nothing was executed", str(ctx.exception))
+            self.assertIn("not permitted", str(ctx.exception))
+            self.assertNotIn('option "Beta" [selected]', eye.snapshot(), "the first step must not have run")
+        finally:
+            eye.close()
+
+    def test_batch_rejects_malformed_steps_without_running_anything(self):
+        with self.assertRaises(ValueError):
+            self.eye.batch([{"action": "click"}])
+        with self.assertRaises(ValueError):
+            self.eye.batch([{"action": "teleport"}])
+        with self.assertRaises(ValueError):
+            self.eye.batch([])
+
+    def test_batch_does_not_ask_twice_for_the_same_step(self):
+        asked = []
+        policy = Policy()
+        policy.categories["interact"] = "ask"
+        eye = AgentEye(workspace=self.ws, policy=policy, on_approve=lambda title, detail: asked.append(title) or True, headless=True)
+        try:
+            eye.batch([{"action": "navigate", "url": self.base + "/actions"}, {"action": "hover", "target": "#h"}], report="none")
+            self.assertEqual(len(asked), 2, asked)
+        finally:
+            eye.close()

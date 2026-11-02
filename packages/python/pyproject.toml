@@ -17,7 +17,7 @@ dependencies = [
 
 [project.optional-dependencies]
 # MCP server entry point (so any MCP-aware agent can use the same tools).
-mcp = ["mcp>=1.0"]
+mcp = ["mcp>=1.0; python_version >= '3.10'"]
 
 [project.scripts]
 agent-eye-mcp = "agent_eye.mcp_server:main"
