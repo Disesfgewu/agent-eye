@@ -351,10 +351,77 @@ def _mix_reason(args: List[str]) -> Optional[str]:
                          "runs inline code or loads code from elsewhere")
 
 
+# ---- Ruby / PHP / Python frameworks (Issue #32) -------------------------------------
+# Entry points that are allowlisted for their server command but also evaluate code
+# (`rails runner`, `manage.py shell -c`, `flask shell`, `php artisan tinker`, `bundle exec <anything>`).
+
+def _rails_reason(args: List[str]) -> Optional[str]:
+    return _only_subcommands("rails", _first(_scan(args)[1]), ["server", "s"])
+
+
+_BUNDLE_EXEC_OK = ["rails", "puma", "rackup", "jekyll", "unicorn", "thin", "middleman", "bridgetown", "hanami"]
+
+
+def _bundle_reason(args: List[str]) -> Optional[str]:
+    positionals = _scan(args)[1]
+    bad = _only_subcommands("bundle", _first(positionals), ["exec"])
+    if bad:
+        return bad
+    inner = positionals[1] if len(positionals) > 1 else None
+    if inner is None or inner not in _BUNDLE_EXEC_OK:
+        return f'bundle exec: "{inner or ""}" is not a known server command (allowed: {", ".join(_BUNDLE_EXEC_OK)})'
+    return toolchain_reason(inner, args[args.index(inner) + 1:])
+
+
+def _rackup_reason(args: List[str]) -> Optional[str]:
+    return _deny_flag_names("rackup", _scan(args)[0], ["e", "eval", "r", "require", "I"],
+                            "runs inline code or loads code from elsewhere")
+
+
+def _jekyll_reason(args: List[str]) -> Optional[str]:
+    flags, positionals, _r, _ = _scan(args, {"source", "s", "destination", "d", "config", "c", "port", "p", "host", "h", "baseurl", "b"})
+    return _only_subcommands("jekyll", _first(positionals), ["serve", "s", "server"]) or \
+        _deny_path_flags("jekyll", flags, ["source", "s", "destination", "d", "config", "c"])
+
+
+def _hugo_reason(args: List[str]) -> Optional[str]:
+    flags, positionals, _r, _ = _scan(args, {"source", "s", "destination", "d", "config", "themesdir", "cachedir", "contentdir",
+                                             "layoutdir", "port", "p", "bind", "baseurl", "b", "environment", "e", "theme", "t"})
+    return _only_subcommands("hugo", _first(positionals), ["server"]) or \
+        _deny_path_flags("hugo", flags, ["source", "s", "destination", "d", "config", "themesdir", "cachedir", "contentdir", "layoutdir"])
+
+
+def _flask_reason(args: List[str]) -> Optional[str]:
+    flags, positionals, _r, _ = _scan(args, {"app", "a", "env-file", "e"})
+    return _only_subcommands("flask", _first(positionals), ["run"]) or _deny_path_flags("flask", flags, ["env-file", "e"])
+
+
+def django_reason(args: List[str]) -> Optional[str]:
+    flags, positionals, _r, _ = _scan(args, {"settings", "pythonpath"})
+    return _only_subcommands("manage.py", _first(positionals), ["runserver", "runserver_plus"]) or \
+        _deny_path_flags("manage.py", flags, ["pythonpath"])
+
+
+def _uvicorn_reason(args: List[str]) -> Optional[str]:
+    flags = _scan(args, {"app-dir", "env-file", "log-config", "host", "port", "workers", "reload-dir", "ssl-keyfile", "ssl-certfile"})[0]
+    return _deny_path_flags("uvicorn", flags, ["app-dir", "env-file", "log-config"])
+
+
+def php_artisan_reason(args: List[str]) -> Optional[str]:
+    """`php artisan <cmd>`: only `serve` is a dev server (`tinker`, `migrate`, custom commands run code)."""
+    i = next((k for k, a in enumerate(args) if re.search(r"(^|[\\/])artisan$", a)), -1)
+    if i < 0:
+        return None
+    sub = next((a for a in args[i + 1:] if not a.startswith("-")), None)
+    return None if sub == "serve" else f"php artisan {sub or ''}: only `php artisan serve` may be started here"
+
+
 _RULES = {
     "go": _go_reason, "cargo": _cargo_reason, "trunk": _trunk_reason, "dx": _dx_reason, "air": _air_reason,
     "templ": _templ_reason, "wails": _wails_reason, "dotnet": _dotnet_reason,
     "mvn": _mvn_reason, "mvnw": _mvn_reason, "gradle": _gradle_reason, "gradlew": _gradle_reason, "mix": _mix_reason,
+    "rails": _rails_reason, "bundle": _bundle_reason, "rackup": _rackup_reason, "jekyll": _jekyll_reason, "hugo": _hugo_reason,
+    "flask": _flask_reason, "django-admin": django_reason, "manage.py": django_reason, "uvicorn": _uvicorn_reason,
 }
 
 

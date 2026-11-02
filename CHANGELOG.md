@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Security: framework entry points and package managers can no longer run arbitrary code through the command allowlist** (#32). Verified bypasses before the fix (all were `allowlisted`): `python -m timeit -s "<code>"`, `python -m pip install x`, `python manage.py shell -c`, `rails runner`, `bundle exec ruby -e`, `flask shell`, `php artisan tinker`, `deno run npm:x`, `bun create x`, `npm install <pkg>`, `npm create`, `yarn add`. Now limited to server commands, in both the Node and Python guards, with 100 new shared test cases (280 total).
 ## 0.2.0 - 2026-11-02
 
 Minor release: new tools (usage ledger, interaction and composite tools, `detect_project`), Go/Rust/.NET/JVM/Elixir dev servers, Firefox/WebKit, a snapshot-refs fix, and several security fixes (including a Windows allowlist bypass, #27). **Upgrade recommended for Windows users.** The extension's browser-runtime installer still installs Chromium only; for Firefox/WebKit run `npx playwright install firefox webkit` yourself.
