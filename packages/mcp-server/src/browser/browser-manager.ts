@@ -1,11 +1,11 @@
-import type { BrowserContext, Page, ConsoleMessage } from "playwright";
+import type { Browser, BrowserContext, Page, ConsoleMessage } from "playwright";
 import { log } from "../logger.js";
 import { RingBuffer } from "./ring-buffer.js";
 import { PERF_COLLECT_SCRIPT, PERF_INIT_SCRIPT, type RawPerf } from "./perf.js";
 import { findPidsUsingDir } from "../reaper.js";
 import { BLOCKED_HOST_RESOLVER_RULES, isBlockedHost } from "../security/url-guard.js";
 import type { CookieInput } from "../security/state-guard.js";
-import { DEFAULT_VIEWPORT, launchErrorHint, parseEngine, parseViewport, resolveDevice, type DeviceOptions, type EngineName, type Viewport } from "./engine.js";
+import { DEFAULT_VIEWPORT, cdpIncompatibility, launchErrorHint, parseCdpUrl, parseEngine, parseViewport, resolveDevice, type DeviceOptions, type EngineName, type Viewport } from "./engine.js";
 
 interface Reaper {
   track(pid?: number): void;
@@ -222,6 +222,10 @@ export class BrowserManager {
   private viewport: Viewport = DEFAULT_VIEWPORT;
   private engine: EngineName = "chromium";
   private lastSnapshot: { key: string; text: string } | undefined;
+  /** Set only when attached to the user's own browser (AGENT_EYE_CDP_URL). */
+  private cdpBrowser: Browser | undefined;
+  /** In CDP mode: the only pages Agent Eye may touch (the tabs it opened, and popups they opened). */
+  private readonly ownedPages = new Set<Page>();
 
   /** Resets the idle-close countdown; call on every browser interaction. */
   private touch(): void {
@@ -244,8 +248,72 @@ export class BrowserManager {
     private readonly reaper?: Reaper
   ) {}
 
+  /**
+   * Attach to a Chromium the user started with --remote-debugging-port (Issue #40). Everything here is
+   * written around one rule: Agent Eye owns ONLY the tabs it opens. So, unlike the launched-browser path:
+   * it never adopts an existing tab, follows only popups opened by its own tabs, installs scripts and
+   * request blocking per page (never per context: that would hit the user's other tabs, including the
+   * input lock), never resizes or closes the user's window, and on close shuts only its own tabs.
+   */
+  private async ensureCdpPage(cdpUrl: string): Promise<Page> {
+    if (!this.context) {
+      const clash = cdpIncompatibility(process.env, this.channel);
+      if (clash) throw new Error(clash);
+      this.viewport = parseViewport(process.env.AGENT_EYE_VIEWPORT) ?? DEFAULT_VIEWPORT;
+      this.engine = "chromium";
+      const pw = await loadPlaywright();
+      log.info("Attaching to an existing browser over CDP", { cdpUrl });
+      const browser = await pw.chromium.connectOverCDP(cdpUrl, { timeout: 15_000 }).catch((err: unknown) => {
+        throw new Error(
+          `Could not attach to ${cdpUrl}: ${err instanceof Error ? err.message.split("\n")[0] : String(err)}. ` +
+            "Start Chromium/Chrome with --remote-debugging-port=<port> and (Chrome 136+) a non-default --user-data-dir."
+        );
+      });
+      this.cdpBrowser = browser;
+      const context = browser.contexts()[0] ?? (await browser.newContext());
+      this.context = context;
+      browser.on("disconnected", () => {
+        this.cdpBrowser = undefined;
+        this.context = undefined;
+        this.page = undefined;
+        this.ownedPages.clear();
+      });
+      context.on("page", (p) => {
+        void p.opener().then(
+          (opener) => {
+            if (!opener || !this.ownedPages.has(opener)) return; // the user's own new tab: not ours
+            this.ownedPages.add(p);
+            this.page = p;
+            this.attachListeners(p);
+            this.pushConsole("popup", `opened ${p.url() || "(new tab)"}`);
+            void p.bringToFront().catch(() => undefined);
+          },
+          () => undefined
+        );
+      });
+    }
+    const page = await this.context!.newPage();
+    this.ownedPages.add(page);
+    this.page = page;
+    // Same SSRF guard as the other non-launch paths, but on OUR tab only.
+    await page.route(
+      (url) => isBlockedHost(url.hostname),
+      (route) => route.abort("namenotresolved")
+    );
+    if (this.showCursor) {
+      await page.addInitScript(CURSOR_SCRIPT);
+      await page.addInitScript(STATUS_SCRIPT);
+    }
+    await page.setViewportSize(this.viewport).catch(() => undefined);
+    this.attachListeners(page);
+    this.touch();
+    return page;
+  }
+
   private async ensurePage(): Promise<Page> {
     if (this.page && !this.page.isClosed()) return this.page;
+    const cdpUrl = parseCdpUrl(process.env.AGENT_EYE_CDP_URL);
+    if (cdpUrl) return await this.ensureCdpPage(cdpUrl);
 
     if (!this.context) {
       const engine = parseEngine(process.env.AGENT_EYE_BROWSER);
@@ -624,7 +692,8 @@ export class BrowserManager {
     const page = await this.ensurePage();
     await page.setViewportSize({ width, height });
     this.viewport = { width, height };
-    if (process.env.AGENT_EYE_HEADLESS === "1" || this.engine !== "chromium") return;
+    // Never resize the window of a browser the user is working in (CDP mode).
+    if (process.env.AGENT_EYE_HEADLESS === "1" || this.engine !== "chromium" || this.cdpBrowser) return;
     try {
       const client = await page.context().newCDPSession(page);
       const { windowId } = await client.send("Browser.getWindowForTarget");
@@ -754,6 +823,9 @@ export class BrowserManager {
 
   /** Clears the current host's cookies and the page's local/session storage. */
   async clearState(): Promise<void> {
+    if (this.cdpBrowser) {
+      throw new Error("clear is not available when attached to your own browser: it would log you out of other apps on this host. Set the values you need instead.");
+    }
     const page = await this.ensurePage();
     await page.context().clearCookies({ domain: new URL(page.url()).hostname });
     await page.evaluate(() => {
@@ -820,6 +892,17 @@ export class BrowserManager {
     if (this.idleTimer) {
       clearTimeout(this.idleTimer);
       this.idleTimer = undefined;
+    }
+    if (this.cdpBrowser) {
+      // The user's browser keeps running: close only the tabs we opened, then disconnect.
+      const browser = this.cdpBrowser;
+      for (const p of this.ownedPages) await p.close().catch(() => undefined);
+      this.ownedPages.clear();
+      this.cdpBrowser = undefined;
+      this.context = undefined;
+      this.page = undefined;
+      await browser.close().catch(() => undefined);
+      return;
     }
     if (this.context) {
       await this.context.close().catch(() => undefined);

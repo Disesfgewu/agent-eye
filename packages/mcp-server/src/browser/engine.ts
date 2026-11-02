@@ -78,3 +78,37 @@ export function launchErrorHint(engine: EngineName, err: unknown): Error | undef
   }
   return undefined;
 }
+
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+
+/**
+ * AGENT_EYE_CDP_URL (Issue #40): attach to a Chromium you started yourself with
+ * `--remote-debugging-port`. A CDP endpoint is full control of that browser, so only this machine is
+ * accepted: loopback hosts over http(s)/ws(s). Returns undefined when unset.
+ */
+export function parseCdpUrl(value: string | undefined): string | undefined {
+  const raw = (value ?? "").trim();
+  if (!raw) return undefined;
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw new Error(`AGENT_EYE_CDP_URL="${raw}" is not a valid URL. Example: http://127.0.0.1:9222`);
+  }
+  if (!["http:", "https:", "ws:", "wss:"].includes(u.protocol)) {
+    throw new Error(`AGENT_EYE_CDP_URL must be http(s):// or ws(s)://, got "${u.protocol}".`);
+  }
+  if (!LOOPBACK_HOSTS.has(u.hostname.toLowerCase())) {
+    throw new Error(`AGENT_EYE_CDP_URL must point at this machine (localhost, 127.0.0.1 or [::1]); got host "${u.hostname}". A remote debugging endpoint hands over complete control of that browser.`);
+  }
+  return raw;
+}
+
+/** Settings that make no sense (or would be unsafe) on a browser Agent Eye did not launch. */
+export function cdpIncompatibility(env: NodeJS.ProcessEnv, channel: string | undefined): string | undefined {
+  const engine = (env.AGENT_EYE_BROWSER ?? "").trim().toLowerCase();
+  if (engine && engine !== "chromium") return `AGENT_EYE_BROWSER=${engine} cannot be combined with AGENT_EYE_CDP_URL (CDP is Chromium-only).`;
+  if (channel) return "AGENT_EYE_BROWSER_CHANNEL cannot be combined with AGENT_EYE_CDP_URL (the browser is already running).";
+  if ((env.AGENT_EYE_DEVICE ?? "").trim()) return "AGENT_EYE_DEVICE cannot be combined with AGENT_EYE_CDP_URL (device emulation needs a context Agent Eye creates); use AGENT_EYE_VIEWPORT.";
+  return undefined;
+}

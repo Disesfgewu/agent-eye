@@ -269,6 +269,17 @@ frontend dev server (`npm run dev`, `trunk serve`) is.
 > instead of snapshot-first. Add any extra dev commands to `commandAllowlist` in
 > `.agent-eye/policy.json`.
 
+## Attaching to your own browser (`AGENT_EYE_CDP_URL`)
+
+By default Agent Eye launches a **separate, empty profile**: the agent never sees your sessions. Setting `AGENT_EYE_CDP_URL=http://127.0.0.1:9222` attaches to a Chromium you started yourself instead, so the agent can work in a session you already logged into. That trades isolation for convenience, so it is off by default and fenced:
+
+- **Agent Eye owns only the tabs it opens.** It never adopts an existing tab, never follows a tab you open later (only popups opened by its own tabs), and on `browser_close` closes just its tabs and disconnects: your browser and tabs keep running.
+- Nothing is installed browser-wide: the watch-along cursor/status script, the SSRF request block and the viewport apply to its tabs only; the **input lock is never used**, the window is never resized, and `browser_set_storage clear` is refused (it would log you out of other apps on that host).
+- Navigation is still limited to the allowlist (localhost by default) and every permission category still applies.
+- Only loopback endpoints are accepted (a CDP endpoint is full control of that browser). It cannot be combined with `AGENT_EYE_BROWSER`, `AGENT_EYE_BROWSER_CHANNEL` or `AGENT_EYE_DEVICE`.
+- **What it still shares with you:** the browser's cookie jar. Navigating its tab to `localhost:3000` sends the cookies that browser holds for `localhost`, and `browser_set_storage` cookies persist there. Use a dedicated browser/profile for dev work if that matters.
+- Recent Chrome ignores `--remote-debugging-port` for the *default* profile, so start it with a non-default `--user-data-dir` (sign in once in that profile). Verified here against Playwright's Chromium only; Chrome/Edge builds were not tested.
+
 ## Agent Skill: make every agent use it automatically
 
 [`skills/agent-eye/SKILL.md`](skills/agent-eye/SKILL.md) is an Agent Skill that
@@ -407,6 +418,7 @@ detail in [`plan.v1.md` §7](plan.v1.md).
 | `AGENT_EYE_SHOW_CURSOR` | `agentEye.showCursor` | Pulsing cursor overlay so you can watch where the agent points/clicks (Playwright doesn't move the real OS pointer). On by default. |
 | `AGENT_EYE_SLOWMO` | `agentEye.slowMoMs` | Slow each action by N ms so you can follow along (e.g. 300–800). |
 | `AGENT_EYE_INPUT_LOCK` | — | Lock the user's mouse/keyboard while the agent drives (default on when headed; `0` disables). |
+| `AGENT_EYE_CDP_URL` | — | **Opt-in, higher risk.** Attach to a Chromium you started yourself (`chrome --remote-debugging-port=9222 --user-data-dir=<dir>`) instead of launching Agent Eye's own isolated profile, e.g. to reuse a session you logged into in that browser. Loopback endpoints only (`http://127.0.0.1:9222`); anything else is refused. See *Attaching to your own browser* below. |
 | `AGENT_EYE_BROWSER` | — | `chromium` (default), `firefox` or `webkit`. Install the engine first: `npx playwright install firefox` / `webkit`. `AGENT_EYE_BROWSER_CHANNEL` applies to Chromium only. Metadata-host blocking is enforced on every engine (resolver rule on Chromium, request interception on the others). |
 | `AGENT_EYE_DEVICE` | — | Emulate a [Playwright device](https://playwright.dev/docs/emulation#devices) by name, e.g. `iPhone 15`, `Pixel 7` (user agent, viewport, scale, touch). `isMobile` is ignored on Firefox. |
 | `AGENT_EYE_VIEWPORT` | — | `WIDTHxHEIGHT` (200–3840 × 200–2400), default `1280x800`. `browser_click_at` coordinates follow the viewport. |
