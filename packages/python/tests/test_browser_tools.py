@@ -3,11 +3,13 @@
 Skipped without Playwright unless AGENT_EYE_REQUIRE_PLAYWRIGHT=1 (CI), where it must run.
 """
 import http.server
+import json
 import os
 import re
 import shutil
 import tempfile
 import threading
+import time
 import unittest
 
 try:
@@ -31,14 +33,24 @@ ACTIONS = b"""<!doctype html><title>actions</title>
 <p id="out"></p>
 <script>setTimeout(()=>{const e=document.createElement('p');e.textContent='late-text';document.body.appendChild(e)},600)</script>"""
 POPUP = b"""<!doctype html><title>popup</title><h1>popup-page</h1>"""
+STATE = b"""<!doctype html><title>state</title><pre id="out"></pre><script>document.getElementById('out').textContent='cookie='+document.cookie+' ls='+(localStorage.getItem('tok')||'none')+' ss='+(sessionStorage.getItem('s')||'none');</script>"""
+UPLOAD = b"""<!doctype html><title>upload</title><input type="file" id="f" aria-label="file"><p id="o">nothing</p><script>f.onchange=()=>{o.textContent=Array.from(f.files).map(x=>x.name+':'+x.size).join(',')}</script>"""
+PERF = b"""<!doctype html><title>perf</title><h1 id="hero">perf page</h1><script src="/slow.js"></script><script src="/big.js" async></script>
+<script>const t=Date.now();while(Date.now()-t<250){}
+setTimeout(()=>{const d=document.createElement('div');d.style.cssText='height:200px;background:#eee';document.body.insertBefore(d,document.getElementById('hero'));},300);</script>"""
 
 
 class _Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
-        routes = {"/": (200, HOME), "/clean": (200, CLEAN), "/actions": (200, ACTIONS), "/popup": (200, POPUP)}
-        status, body = routes.get(self.path.split("?")[0], (404, b"nf"))
+        path = self.path.split("?")[0]
+        if path == "/slow.js":
+            time.sleep(0.4)
+        routes = {"/": (200, HOME), "/clean": (200, CLEAN), "/actions": (200, ACTIONS), "/popup": (200, POPUP),
+                  "/state": (200, STATE), "/upload": (200, UPLOAD), "/perf": (200, PERF),
+                  "/slow.js": (200, b"window.__slow = 1;"), "/big.js": (200, b"/*" + b"x" * (300 * 1024) + b"*/")}
+        status, body = routes.get(path, (404, b"nf"))
         self.send_response(status)
-        self.send_header("content-type", "text/html")
+        self.send_header("content-type", "application/javascript" if path.endswith(".js") else "text/html")
         self.end_headers()
         self.wfile.write(body)
 
@@ -255,3 +267,118 @@ class CompositeTools(unittest.TestCase):
             self.assertEqual(len(asked), 2, asked)
         finally:
             eye.close()
+
+
+@unittest.skipUnless(HAVE_PLAYWRIGHT or os.environ.get("AGENT_EYE_REQUIRE_PLAYWRIGHT") == "1", "playwright not installed")
+class StateAndPerfTools(unittest.TestCase):
+    """set_storage / upload_file (Issue #38), perf_summary (#39), screenshot_if_changed (#37)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.httpd = http.server.ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
+        cls.base = f"http://127.0.0.1:{cls.httpd.server_address[1]}"
+        threading.Thread(target=cls.httpd.serve_forever, daemon=True).start()
+        cls.ws = tempfile.mkdtemp(prefix="ae-py-state-")
+        cls.asked = []
+        policy = Policy()
+        policy.categories["sideEffect"] = "ask"
+        cls.eye = AgentEye(workspace=cls.ws, policy=policy, headless=True,
+                           on_approve=lambda title, detail: cls.asked.append((title, detail)) or True)
+        with open(os.path.join(cls.ws, "hello.txt"), "w", encoding="utf-8") as fh:
+            fh.write("hello")
+        with open(os.path.join(cls.ws, ".env"), "w", encoding="utf-8") as fh:
+            fh.write("SECRET=1")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.eye.close()
+        cls.httpd.shutdown()
+        shutil.rmtree(cls.ws, ignore_errors=True)
+
+    def test_storage_is_write_only_path_scoped_and_clearable(self):
+        eye = self.eye
+        eye.navigate(self.base + "/state")
+        self.asked.clear()
+        out = eye.set_storage(cookies=[{"name": "sid", "value": "abc123"}], local_storage={"tok": "xyz789"}, session_storage={"s": "sess456"})
+        self.assertIn("cookie:sid", out)
+        for secret in ("abc123", "xyz789", "sess456"):
+            self.assertNotIn(secret, out)
+            self.assertNotIn(secret, json.dumps(self.asked), "values never reach the approval prompt")
+        eye.history("reload")
+        seen = eye.snapshot()
+        self.assertIn("sid=abc123", seen)
+        self.assertIn("ls=xyz789", seen)
+        self.assertIn("ss=sess456", seen)
+        # a cookie with a path must be accepted (Playwright rejects url+path) and honour its scope
+        eye.set_storage(cookies=[{"name": "scoped", "value": "yes", "path": "/state"}, {"name": "elsewhere", "value": "no", "path": "/other"}])
+        eye.history("reload")
+        scoped = eye.snapshot()
+        self.assertIn("scoped=yes", scoped)
+        self.assertNotIn("elsewhere=no", scoped)
+        with self.assertRaises(ValueError):
+            eye.set_storage(cookies=[{"name": "a", "value": "v; Domain=evil.com"}])
+        with self.assertRaises(ValueError):
+            eye.set_storage()
+        eye.set_storage(clear=True)
+        eye.history("reload")
+        self.assertIn("cookie= ls=none ss=none", eye.snapshot())
+
+    def test_upload_attaches_workspace_files_and_refuses_secrets_and_outside_paths(self):
+        eye = self.eye
+        eye.navigate(self.base + "/upload")
+        self.asked.clear()
+        out = eye.upload_file("#f", ["hello.txt"])
+        self.assertIn("hello.txt", out)
+        self.assertTrue(any("hello.txt" in d for _, d in self.asked), "the prompt names the file")
+        eye.wait_for(text="hello.txt:5", timeout_ms=3000)
+        for bad in ([".env"], ["../../../../etc/hosts"], ["missing.txt"], []):
+            with self.assertRaises(ValueError):
+                eye.upload_file("#f", bad)
+
+    def test_state_tools_need_an_allowlisted_page(self):
+        eye = self.eye  # (one sync Playwright instance per thread: reuse the class-level one)
+        eye._ensure_page().goto("about:blank")
+        with self.assertRaises(ValueError):
+            eye.set_storage(local_storage={"a": "b"})  # no page open
+        eye.navigate(self.base + "/state")
+        saved = eye.policy.navigation_allowlist
+        eye.policy.navigation_allowlist = ["localhost"]  # the current host is no longer allowlisted
+        try:
+            with self.assertRaises(Exception) as ctx:
+                eye.upload_file("#f", ["hello.txt"])
+            self.assertIn("navigation allowlist", str(ctx.exception))
+        finally:
+            eye.policy.navigation_allowlist = saved
+
+    def test_perf_summary_reports_vitals_slow_and_large_requests(self):
+        eye = self.eye
+        eye.navigate(self.base + "/perf")
+        out = eye.perf_summary()
+        self.assertRegex(out, r"Perf http://127\.0\.0\.1:\d+/perf \(reloaded, chromium, cpu x1; one lab run, not Lighthouse\)")
+        self.assertRegex(out, r"TTFB \d+ ms")
+        self.assertRegex(out, r"LCP \d+ ms")
+        self.assertRegex(out, r"CLS 0\.\d+ [✓~✗]")
+        self.assertRegex(out, r"\(\d+ long tasks?, worst \d+ ms\)")
+        self.assertRegex(out, r"slowest: .*/slow\.js")
+        self.assertRegex(out, r"largest: .*/big\.js")
+        self.assertIn("cpu x4", eye.perf_summary(cpu_slowdown=4))
+        with self.assertRaises(Exception):
+            eye.perf_summary(url="https://example.com/")
+        with self.assertRaises(ValueError):
+            eye.perf_summary(cpu_slowdown=9)
+
+    def test_screenshot_if_changed_skips_identical_pages(self):
+        eye = self.eye
+        eye.navigate(self.base + "/actions")
+        eye.wait_for(text="late-text")
+        first, note1 = eye.screenshot_if_changed()
+        self.assertTrue(first and first.startswith(b"\x89PNG"))
+        second, note2 = eye.screenshot_if_changed()
+        self.assertIsNone(second)
+        self.assertRegex(note2, r"Screenshot unchanged since \d+s ago")
+        eye.click("#i")
+        eye.type("#i", "changed-input")
+        third, _ = eye.screenshot_if_changed()
+        self.assertIsNotNone(third, "a visible change brings the image back")
+        self.assertTrue(eye.screenshot().startswith(b"\x89PNG"), "plain screenshots always return the image")
+        self.assertTrue(eye.screenshot(selector="#s").startswith(b"\x89PNG"), "an element crop works")

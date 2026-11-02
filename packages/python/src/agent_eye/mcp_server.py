@@ -126,6 +126,52 @@ def main() -> None:
         return guarded(lambda: eye.network(failed_only, url_contains or None, include_static, limit, include_history))
 
     @mcp.tool()
+    def browser_screenshot(full_page: bool = False, selector: str = "", if_changed: bool = False):
+        """PNG screenshot. Costs ~1.4k tokens; prefer browser_snapshot unless the UI is canvas-rendered or visual. selector crops
+        to one element (cheaper). if_changed: reply 'unchanged' (~29 tokens) when identical to the previous shot of this page/scope."""
+        def shoot():
+            import base64
+            from mcp.types import ImageContent, TextContent
+            if if_changed:
+                data, note = eye.screenshot_if_changed(full_page, selector or None)
+            else:
+                data, note = eye.screenshot(full_page, None, selector or None), "Screenshot captured."
+            blocks = [TextContent(type="text", text=note)]
+            if data is not None:
+                blocks.append(ImageContent(type="image", data=base64.b64encode(data).decode("ascii"), mimeType="image/png"))
+            return blocks
+        return guarded(shoot)
+
+    @mcp.tool()
+    def browser_set_storage(cookies: list = [], local_storage: dict = {}, session_storage: dict = {}, clear: bool = False) -> str:
+        """Set cookies, localStorage or sessionStorage on the current (allowlisted) page, or clear them, e.g. to test a logged-in
+        state with a test token. Cookies are dicts {name, value, path?, httpOnly?, secure?, sameSite?}. Write-only: values are
+        never echoed or logged. Reload afterwards to apply."""
+        return guarded(lambda: eye.set_storage(cookies or None, local_storage or None, session_storage or None, clear))
+
+    @mcp.tool()
+    def browser_upload_file(target: str, paths: list) -> str:
+        """Attach workspace files to a file input (ref or selector). Only regular files inside the workspace; secrets (.env, keys, .git, ...)
+        and files over 25 MB are refused."""
+        return guarded(lambda: eye.upload_file(target, paths))
+
+    @mcp.tool()
+    def browser_perf_summary(url: str = "", cpu_slowdown: int = 1) -> str:
+        """Reload the page (or open an allowlisted url) and report TTFB/FCP/LCP/CLS/TBT with web.dev ratings, the LCP element, slowest
+        and largest requests in a few lines. One lab run, not Lighthouse."""
+        return guarded(lambda: eye.perf_summary(url or None, cpu_slowdown))
+
+    @mcp.tool()
+    def browser_close() -> str:
+        """Close the browser window when the task is fully done (it reopens on the next browser tool call)."""
+        return guarded(lambda: (eye.close_browser(), "browser closed")[1])
+
+    @mcp.tool()
+    def browser_show_status(message: str) -> str:
+        """Live narration banner in the window: tell the watching user what you are doing right now."""
+        return guarded(lambda: (eye.show_status(message), "status shown")[1])
+
+    @mcp.tool()
     def browser_verify_page(url: str = "", wait_for_text: str = "", snapshot: str = "interactive", settle_ms: int = 500) -> str:
         """One call: optionally navigate, wait for load, then report document status, console errors/warnings,
         failed requests and the actionable elements. Use instead of navigate + snapshot + console + network."""
