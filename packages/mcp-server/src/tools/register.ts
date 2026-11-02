@@ -19,6 +19,8 @@ import {
   formatConsole,
   formatNetwork,
   selectNetwork,
+  findInSnapshot,
+  limitDepth,
   truncateText,
 } from "../browser/format.js";
 
@@ -112,15 +114,17 @@ export function registerTools(ctx: ToolContext): void {
     {
       title: "Snapshot page (accessibility tree)",
       description:
-        "Accessibility snapshot of the page with [ref=eN] handles for browser_click/browser_type. Primary way to see the page; far cheaper than a screenshot. Large pages: use interactive=true, selector, or delta=true.",
+        "Accessibility snapshot of the page with [ref=eN] handles for browser_click/browser_type. Primary way to see the page; far cheaper than a screenshot. Large pages: use find, depth, interactive=true, selector, or delta=true.",
       inputSchema: {
         interactive: z.boolean().optional().describe("Flat list of actionable elements only."),
         selector: z.string().optional().describe("Scope to a ref/selector subtree."),
         delta: z.boolean().optional().describe("Return only changes since the last snapshot."),
+        depth: z.number().int().min(1).max(20).optional().describe("Keep N levels; cut subtrees show how to expand them."),
+        find: z.string().max(100).optional().describe("Only elements whose role/text contains this, with ancestor path."),
         maxChars: z.number().int().min(500).max(100_000).optional().describe("Output cap in chars (default 12000)."),
       },
     },
-    async ({ interactive, selector, delta, maxChars }): Promise<ToolResult> => {
+    async ({ interactive, selector, delta, depth, find, maxChars }): Promise<ToolResult> => {
       const gateResult = await gate.check("observe", { tool: "browser_snapshot", title: "Read page snapshot", detail: "" });
       if (!gateResult.ok) return errorResult(gateResult.message);
       try {
@@ -133,15 +137,15 @@ export function registerTools(ctx: ToolContext): void {
           raw.trim().length < 40
             ? "\n\nNote: the accessibility tree is nearly empty (common for canvas UIs like Flutter web/WebGL). Use browser_screenshot + browser_click_at, and rely on console/network logs."
             : "";
-        let body = interactive ? filterInteractive(raw) || "(no interactive elements)" : raw;
-        const key = `${url}|${selector ?? ""}|${interactive ? "i" : "f"}`;
+        let body = find ? findInSnapshot(raw, find) : interactive ? filterInteractive(raw) || "(no interactive elements)" : depth ? limitDepth(raw, depth) : raw;
+        const key = `${url}|${selector ?? ""}|${find ? `f:${find}` : interactive ? "i" : depth ? `d${depth}` : "f"}`;
         const previous = delta ? browser.previousSnapshot(key) : undefined;
         browser.rememberSnapshot(key, body);
         if (previous !== undefined) {
           const diff = diffSnapshots(previous, body);
           body = diff === undefined ? "(no changes since last snapshot)" : `(changes since last snapshot)\n${diff}`;
         }
-        const capped = truncateText(body, maxChars ?? DEFAULT_SNAPSHOT_MAX_CHARS, "Narrow with selector, interactive=true or delta=true.");
+        const capped = truncateText(body, maxChars ?? DEFAULT_SNAPSHOT_MAX_CHARS, "Narrow with selector, find, depth, interactive=true or delta=true.");
         return text(framedWebData(url, capped.text) + hint);
       } catch (err) {
         return toolError("browser_snapshot", "Failed to snapshot page (is a page open? call browser_navigate first)", err, artifacts);

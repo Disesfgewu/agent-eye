@@ -43,6 +43,68 @@ export function filterInteractive(snapshot: string): string {
   return out.join("\n");
 }
 
+/** `- role "name" [ref=e1]:` -> `role "name"` (what a human would call the node; no attributes/refs). */
+function label(role: string, rest: string): string {
+  const name = /^\s*("(?:[^"\\]|\\.)*")/.exec(rest)?.[1];
+  return name ? `${role} ${name}` : role;
+}
+
+/**
+ * Keeps the first `depth` levels of the tree (1 = top level only). A node whose children were cut
+ * gets a marker with the node count and the ref to expand it (`selector=eN`), so the agent can drill
+ * down instead of paying for the whole page.
+ */
+export function limitDepth(snapshot: string, depth: number): string {
+  const lines = snapshot.split("\n");
+  const level = (l: string) => Math.floor((/^ */.exec(l)?.[0].length ?? 0) / 2);
+  const out: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i];
+    if (level(l) >= depth) continue;
+    if (level(l) === depth - 1 && LINE_RE.test(l)) {
+      let nodes = 0;
+      for (let j = i + 1; j < lines.length && level(lines[j]) > level(l); j++) if (LINE_RE.test(lines[j]) && !lines[j].trim().startsWith("- /")) nodes++;
+      if (nodes > 0) {
+        const ref = /\[ref=(e\d+)\]/.exec(l)?.[1];
+        out.push(`${l.replace(/:$/, "")} …(+${nodes} nodes${ref ? `, expand: selector=${ref}` : ""})`);
+        continue;
+      }
+    }
+    out.push(l);
+  }
+  return out.join("\n");
+}
+
+/**
+ * Elements whose role or text contains `query` (case-insensitive), each with the labels of its
+ * ancestors (`main > form "Checkout" > button "Pay now" [ref=e41]`), so one control on a big page
+ * costs a line or two instead of the whole tree.
+ */
+export function findInSnapshot(snapshot: string, query: string, limit = 20): string {
+  const q = query.trim().toLowerCase();
+  if (!q) return "(empty find query)";
+  const lines = snapshot.split("\n");
+  const stack: Array<{ level: number; label: string }> = [];
+  const hits: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = LINE_RE.exec(lines[i]);
+    if (!m) continue;
+    const lvl = Math.floor(m[1].length / 2);
+    while (stack.length && stack[stack.length - 1].level >= lvl) stack.pop();
+    const [, , role, rest] = m;
+    if (`${role}${rest}`.toLowerCase().includes(q) && rest.includes("[ref=")) {
+      let line = `${role}${rest.replace(" [cursor=pointer]", "").replace(/:$/, "")}`;
+      const next = lines[i + 1]?.trim();
+      if (role === "link" && next?.startsWith("- /url:")) line += ` → ${next.slice("- /url:".length).trim()}`;
+      hits.push([...stack.map((s) => s.label), line].join(" > "));
+    }
+    stack.push({ level: lvl, label: label(role, rest) });
+  }
+  if (!hits.length) return `(no elements match "${query}")`;
+  const shown = hits.slice(0, limit);
+  return shown.join("\n") + (hits.length > shown.length ? `\n… ${hits.length - shown.length} more matches; refine the query` : "");
+}
+
 export interface Truncated {
   text: string;
   truncated: boolean;
