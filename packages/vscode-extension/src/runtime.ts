@@ -12,7 +12,7 @@ import { ENGINES, enginesFromListing, normalizeEngines, playwrightBrowsersDir, p
  * / browser-manager loadChromium). The install runs programmatically (no
  * terminal), cross-platform.
  */
-const PLAYWRIGHT_VERSION = "1.61.1";
+const PLAYWRIGHT_VERSION = "1.64.1";
 
 let channel: vscode.OutputChannel | undefined;
 function out(): vscode.OutputChannel {

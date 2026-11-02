@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **Playwright 1.64.1 for the Node server and the extension; weekly "newest Playwright" check** (#67). The server ran on 1.61.1 and the extension installed 1.61.1 while the Python package already ran 1.64.1, which is how the frame-prefixed ref (`f1e3`) break was first noticed. Verified before changing anything: with 1.64.1, all 465 Node tests, the Chromium/Firefox/WebKit e2e and the CDP e2e pass. Server range is now `^1.64.1`, the extension pins `1.64.1`, a unit test fails if the pin leaves the server's range or differs from the lockfile (checked by mutation), and a new `playwright-latest` workflow (Mondays + manual) runs everything against `playwright@latest` and opens/refreshes an issue on failure.
 ## 0.5.0 - 2026-11-02
 
 **The Python package is now a full port of the tool set** (compact output, interaction tools, `verify_page`/`batch`, token ledger, state tools, performance summary, Firefox/WebKit, device emulation, CDP attach; shared golden fixtures keep it in lock-step with the Node server), and **its MCP server works again** (it failed on mcp 2.x and on mcp 1.x). Also: `browser_set_storage` accepts cookies with a `path` (it rejected all of them), `playwright>=1.60` for the Python package, and every `mcp` release needs Python 3.10+ (the extra now says so). The VS Code extension and Node server are otherwise unchanged from 0.4.0.

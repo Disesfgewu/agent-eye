@@ -454,6 +454,8 @@ Layout:
 - `packages/mcp-server` — the MCP server (TypeScript, ESM). Entry: `dist/index.js`.
 - `packages/vscode-extension` — the VS Code extension (bundled with esbuild).
 
+**Playwright versions:** the Node server and the extension's runtime installer use Playwright **1.64.1** (the server accepts `^1.64.1`; a unit test keeps the extension's pin consistent with the server's range and the lockfile). A weekly workflow (`playwright-latest`) runs the unit tests and every e2e suite (Chromium, Firefox, WebKit, CDP) against the newest Playwright and opens an issue if something breaks. The Python package needs `playwright>=1.60`.
+
 ## License
 
 Apache-2.0

@@ -35,3 +35,18 @@ test("SKILL.md does not contradict itself about closing the browser", () => {
   assert.ok(!/Never close or relaunch/i.test(skill));
   assert.ok(!/another instance owns/i.test(skill), "the instance lock was removed in 0.1.1");
 });
+
+test("the extension's pinned Playwright satisfies the server's range and is what the lockfile resolves (Issue #67)", () => {
+  const range = read("../package.json").dependencies.playwright; // e.g. "^1.64.1"
+  const min = /^\^(\d+)\.(\d+)\.(\d+)$/.exec(range)?.slice(1).map(Number);
+  assert.ok(min, `expected a caret range, got ${range}`);
+  const runtime = fs.readFileSync(fileURLToPath(new URL("../../vscode-extension/src/runtime.ts", import.meta.url)), "utf8");
+  const pinText = /const PLAYWRIGHT_VERSION = "(\d+\.\d+\.\d+)"/.exec(runtime)?.[1];
+  assert.ok(pinText, "PLAYWRIGHT_VERSION not found in runtime.ts");
+  const pin = pinText.split(".").map(Number);
+  const atLeast = pin[0] > min[0] || (pin[0] === min[0] && (pin[1] > min[1] || (pin[1] === min[1] && pin[2] >= min[2])));
+  assert.equal(pin[0], min[0], "same major");
+  assert.ok(atLeast, `extension pins ${pinText}, below the server's range ${range}`);
+  const lock = read("../../../package-lock.json").packages["node_modules/playwright"].version;
+  assert.equal(lock, pinText, "the extension installs the same Playwright the lockfile (and CI) tests against");
+});
