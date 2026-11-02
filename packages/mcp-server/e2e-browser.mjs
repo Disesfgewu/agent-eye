@@ -39,6 +39,10 @@ check("browser_navigate", !nav.isError);
 
 const snap = await c.callTool({ name: "browser_snapshot", arguments: {} });
 check("snapshot shows page content", /agent-eye e2e ok/.test(textOf(snap)));
+const refMatch = /button "go" \[ref=(e\d+)\]/.exec(textOf(snap));
+check("snapshot emits [ref=eN] handles", !!refMatch);
+const clickRes = await c.callTool({ name: "browser_click", arguments: { target: refMatch ? refMatch[1] : "e0" } });
+check("browser_click works with a snapshot ref", !clickRes.isError);
 
 const shot = await c.callTool({ name: "browser_screenshot", arguments: {} });
 check("screenshot returns an image", (shot.content || []).some((x) => x.type === "image"));

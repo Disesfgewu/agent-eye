@@ -488,18 +488,25 @@ export class BrowserManager {
   }
 
   /**
-   * Accessibility snapshot the agent uses to locate elements. Prefers
-   * Playwright's AI snapshot (emits stable [ref=eN] handles) and falls back to
-   * the public ARIA snapshot on older builds.
+   * Accessibility snapshot the agent uses to locate elements. Uses the public
+   * AI-mode ARIA snapshot (Playwright >= 1.59), which emits stable [ref=eN]
+   * handles that browser_click/browser_type resolve via `aria-ref=`. The private
+   * `_snapshotForAI` (removed in 1.61) is kept as a fallback for older builds, and
+   * the plain ARIA snapshot (no refs) as a last resort.
    */
   async snapshot(): Promise<string> {
     const page = await this.ensurePage();
-    const forAi = (page as unknown as { _snapshotForAI?: () => Promise<string> })._snapshotForAI;
-    if (typeof forAi === "function") {
+    try {
+      return await page.locator("body").ariaSnapshot({ mode: "ai" });
+    } catch (err) {
+      log.debug("ariaSnapshot({mode:\"ai\"}) failed, trying legacy fallbacks", { error: String(err) });
+    }
+    const legacy = (page as unknown as { _snapshotForAI?: () => Promise<string> })._snapshotForAI;
+    if (typeof legacy === "function") {
       try {
-        return await forAi.call(page);
-      } catch (err) {
-        log.debug("_snapshotForAI failed, falling back to ariaSnapshot", { error: String(err) });
+        return await legacy.call(page);
+      } catch {
+        /* fall through to the plain snapshot */
       }
     }
     return await page.locator("body").ariaSnapshot();
