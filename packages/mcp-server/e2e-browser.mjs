@@ -12,9 +12,10 @@ import * as fs from "node:fs";
 
 const textOf = (r) => (r.content || []).filter((x) => x.type === "text").map((x) => x.text).join("\n");
 
-const server = http.createServer((_req, res) => {
+const server = http.createServer((req, res) => {
+  if (req.url.startsWith("/missing")) { res.statusCode = 404; return res.end("nf"); }
   res.setHeader("content-type", "text/html");
-  res.end('<!doctype html><h1 id="t">agent-eye e2e ok</h1><button id="b">go</button>');
+  res.end('<!doctype html><h1 id="t">agent-eye e2e ok</h1><button id="b">go</button><script>console.error("e2e-boom");fetch("/missing");</script>');
 });
 await new Promise((r) => server.listen(0, "127.0.0.1", r));
 const port = server.address().port;
@@ -50,8 +51,25 @@ check("screenshot returns an image", (shot.content || []).some((x) => x.type ===
 const bad = await c.callTool({ name: "browser_navigate", arguments: { url: "file:///etc/passwd" } });
 check("file:// navigation blocked by policy", /blocked/i.test(textOf(bad)));
 
+await new Promise((r) => setTimeout(r, 300));
+const cons1 = textOf(await c.callTool({ name: "browser_get_console_logs", arguments: { types: ["error"] } }));
+check("console shows the page error", /\[error\] e2e-boom/.test(cons1));
+const net1 = textOf(await c.callTool({ name: "browser_get_network_requests", arguments: { failedOnly: true } }));
+check("network (compact) shows the failed request", /GET 404 fetch \/missing/.test(net1) && !/requestHeaders/.test(net1));
+const interactive = textOf(await c.callTool({ name: "browser_snapshot", arguments: { interactive: true } }));
+check("interactive snapshot lists the button with a ref", /button "go".*\[ref=e\d+\]/.test(interactive));
+const delta1 = textOf(await c.callTool({ name: "browser_snapshot", arguments: { delta: true } }));
+const delta2 = textOf(await c.callTool({ name: "browser_snapshot", arguments: { delta: true } }));
+check("delta snapshot reports no changes the second time", delta1.includes("e2e ok") && /no changes since last snapshot/.test(delta2));
+// Reload: old errors must not leak into the new page load unless asked for.
+await c.callTool({ name: "browser_navigate", arguments: { url: `http://127.0.0.1:${port}/?v=2` } });
+await new Promise((r) => setTimeout(r, 300));
+const cons2 = textOf(await c.callTool({ name: "browser_get_console_logs", arguments: { types: ["error"] } }));
+check("console is scoped to the current page load (no x2)", /\[error\] e2e-boom/.test(cons2) && !/×2/.test(cons2));
+const cons3 = textOf(await c.callTool({ name: "browser_get_console_logs", arguments: { types: ["error"], includeHistory: true } }));
+check("includeHistory returns earlier loads too (x2)", /×2/.test(cons3));
 const usage = await c.callTool({ name: "usage_report", arguments: {} });
-check("usage_report counts the calls made", /browser_snapshot \| 1 \|/.test(textOf(usage)) && /Calls: \d+/.test(textOf(usage)));
+check("usage_report counts the calls made", /browser_snapshot \| [1-9]\d* \|/.test(textOf(usage)) && /Calls: \d+/.test(textOf(usage)));
 
 await c.close();
 server.close();
