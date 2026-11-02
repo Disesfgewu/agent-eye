@@ -37,7 +37,9 @@ def process_start(pid: int) -> Optional[str]:
             with open(f"/proc/{pid}/stat", "rb") as f:
                 data = f.read().decode("utf-8", "replace")
             # fields after the ")" that closes the command name: state is field 3, starttime (clock ticks since boot) is field 22
-            return data[data.rindex(")") + 2:].split()[19]
+            fields = data[data.rindex(")") + 2:].split()
+            # a zombie (Z) or dead (X) process is finished: it only lingers until its parent calls wait()
+            return None if fields[0] in ("Z", "X") else fields[19]
         out = subprocess.run(["ps", "-o", "lstart=", "-p", str(pid)], capture_output=True, text=True, timeout=5).stdout.strip()
         return out or None
     except (OSError, ValueError, IndexError, subprocess.SubprocessError):

@@ -66,6 +66,36 @@ class ProcessStart(unittest.TestCase):
         self.assertIsNone(process_start(0))
 
 
+@unittest.skipUnless(sys.platform.startswith("linux"), "zombie processes: Linux only")
+class Zombies(unittest.TestCase):
+    """A killed process stays a zombie (and /proc/<pid> stays readable) until its parent wait()s for it. It is finished."""
+
+    def make_zombie(self):
+        pid = os.fork()
+        if pid == 0:
+            os._exit(0)
+        self.assertTrue(wait_until(lambda: "Z" == open(f"/proc/{pid}/stat").read().rsplit(")", 1)[1].split()[0], 5), "premise: a zombie")
+        self.addCleanup(os.waitpid, pid, 0)
+        return pid
+
+    def test_a_zombie_has_no_start_token(self):
+        self.assertIsNone(process_start(self.make_zombie()))
+
+    def test_a_zombie_owner_counts_as_dead_and_its_children_are_reaped(self):
+        d = tempfile.mkdtemp(prefix="ae-zombie-")
+        child = subprocess.Popen(SLEEPER)
+        try:
+            zombie = self.make_zombie()
+            with open(os.path.join(d, str(zombie)), "w", encoding="utf-8") as f:
+                json.dump({"ownerStart": "any", "children": [{"pid": child.pid, "start": process_start(child.pid)}]}, f)
+            self.assertEqual(ProcessReaper.reap_stale(d), [child.pid])
+            self.assertTrue(wait_until(lambda: child.poll() is not None, 10))
+        finally:
+            if child.poll() is None:
+                child.kill()
+            child.wait()
+
+
 class ReapStale(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp(prefix="ae-pids-")
