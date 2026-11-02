@@ -29,8 +29,9 @@ class _Server:
 
 
 class DevServerManager:
-    def __init__(self):
+    def __init__(self, reaper=None):
         self._servers: dict = {}
+        self._reaper = reaper  # ProcessReaper: records children so an abrupt death of this process cannot orphan them
 
     def start(self, sid: str, command: str, args: list, cwd: str) -> bool:
         existing = self._servers.get(sid)
@@ -43,7 +44,7 @@ class DevServerManager:
             # a real .exe: no shell, any argument is data (Issue #35)
             proc = subprocess.Popen(
                 [launch[1], *args], cwd=cwd, env=env,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
+                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1,
             )
         elif IS_WINDOWS:
             # Defense in depth: the guard already refuses these (Issue #27), but this module must not rely on it.
@@ -54,17 +55,19 @@ class DevServerManager:
             line = " ".join([command, *(quote_win_arg(a) for a in args)])
             proc = subprocess.Popen(
                 line, cwd=cwd, env=env, shell=True,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, bufsize=1,
             )
         else:
             proc = subprocess.Popen(
                 [command, *args], cwd=cwd, env=env,
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, bufsize=1, start_new_session=True,
             )
         server = _Server(id=sid, command=command, args=list(args), cwd=cwd, proc=proc)
         self._servers[sid] = server
+        if self._reaper:
+            self._reaper.track(proc.pid)
         threading.Thread(target=self._pump, args=(server,), daemon=True).start()
         return False
 
@@ -76,6 +79,8 @@ class DevServerManager:
                 "text": line.rstrip("\n"),
             })
         server.proc.wait()
+        if self._reaper:
+            self._reaper.untrack(server.proc.pid)
         server.status = "exited"
         server.exit_code = server.proc.returncode
 
@@ -98,6 +103,8 @@ class DevServerManager:
             return False
         if server.status == "running":
             _kill_tree(server.proc)
+        if self._reaper:
+            self._reaper.untrack(server.proc.pid)
         server.status = "exited"
         return True
 
