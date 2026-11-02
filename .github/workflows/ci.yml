@@ -33,3 +33,26 @@ jobs:
         with:
           name: agent-eye-vsix
           path: packages/vscode-extension/*.vsix
+
+  e2e-engines:
+    name: e2e (${{ matrix.engine }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [firefox, webkit]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Install ${{ matrix.engine }} + system deps
+        run: npx --yes playwright install --with-deps ${{ matrix.engine }}
+      - name: E2E smoke test on ${{ matrix.engine }}
+        working-directory: packages/mcp-server
+        env:
+          AGENT_EYE_BROWSER: ${{ matrix.engine }}
+        run: node e2e-browser.mjs
